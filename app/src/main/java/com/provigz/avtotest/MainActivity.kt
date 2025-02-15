@@ -76,7 +76,7 @@ fun ComposeMainActivity(context: MainActivity = MainActivity()) {
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = {
-                        val intent = Intent(context, QuizActivity::class.java)
+                        val intent = Intent(context, QuestionActivity::class.java)
                         context.startActivity(intent)
                     }
                 ) {

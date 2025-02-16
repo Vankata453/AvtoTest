@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -53,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.provigz.avtotest.ui.theme.AvtoTestTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -218,7 +220,8 @@ fun ComposeQuestionActivity(
                     ) {
                         items(count = min(a = answers.size, b = 4)) { index ->
                             ComposeQuestionAnswerCard(
-                                text = answers[index]
+                                text = answers[index],
+                                pictureID = "55265"
                             )
                         }
                     }
@@ -268,7 +271,8 @@ fun ComposeQuizNavigationDrawer(
                         ) {
                             ComposeQuizNavigationQuestionCard(
                                 coroutineScope = coroutineScope,
-                                index = index * 2 + 1
+                                index = index * 2 + 1,
+                                thumbnailID = "1123577637"
                             )
                             Spacer(
                                 modifier = Modifier.width(32.dp)
@@ -296,7 +300,8 @@ fun ComposeQuizNavigationDrawer(
 @Composable
 fun ComposeQuizNavigationQuestionCard(
     coroutineScope: CoroutineScope,
-    index: Int
+    index: Int,
+    thumbnailID: String = ""
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(fraction = if (index % 2 == 0) 0.7f else 0.36f),
@@ -309,20 +314,31 @@ fun ComposeQuizNavigationQuestionCard(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "$index.",
+                text = if (index < 10) " $index.  " else "$index. ",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
-            //AsyncImage(
-            //model = "https://avtoizpit.com/api/pictures/1123577637.png?thumbnail=true",
-            //contentDescription = "Thumbnail"
-            //)
+            if (thumbnailID.isNotEmpty()) {
+                AsyncImage(
+                    model = "https://avtoizpit.com/api/pictures/$thumbnailID.png?thumbnail=true",
+                    contentDescription = "Thumbnail",
+                    modifier = Modifier.size(26.dp)
+                )
+            } else {
+                Text(
+                    text = "...",
+                    fontSize = 20.sp
+                )
+            }
         }
     }
 }
 
 @Composable
-fun ComposeQuestionAnswerCard(text: String) {
+fun ComposeQuestionAnswerCard(
+    text: String = "",
+    pictureID: String = ""
+) {
     var isPressed by remember { mutableStateOf(false) }
 
     Card(
@@ -330,23 +346,27 @@ fun ComposeQuestionAnswerCard(text: String) {
         onClick = {
             isPressed = !isPressed
         },
-        colors = CardDefaults.cardColors(containerColor = if (isPressed) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer),
+        colors = CardDefaults.cardColors(containerColor = if (isPressed) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text,
-                fontSize = 16.sp,
-                overflow = TextOverflow.Ellipsis,
-                maxLines = 3
-            )
-            //AsyncImage(
-            //model = "https://avtoizpit.com/api/pictures/1123577637.png?thumbnail=true",
-            //contentDescription = "Thumbnail"
-            //)
+            if (pictureID.isNotEmpty()) {
+                AsyncImage(
+                    model = "https://avtoizpit.com/api/pictures/$pictureID.png?quality=4",
+                    contentDescription = text,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                Text(
+                    text,
+                    fontSize = 16.sp,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 3
+                )
+            }
         }
     }
 }

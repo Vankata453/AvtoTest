@@ -44,8 +44,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -210,22 +212,25 @@ fun ComposeQuizActivity(
         )
     )
 ) {
+    val questionIndex = remember { mutableIntStateOf(0) } // TODO: Save this in a state table for this TestSet
+
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
 
     ComposeQuizNavigationDrawer(
         drawerState = drawerState,
         coroutineScope = coroutineScope,
-        testSet
+        testSet,
+        questionIndex
     ) {
         ComposeQuizScaffold(
             drawerState = drawerState,
             coroutineScope = coroutineScope,
             testSet,
-            questionIndex = 0, // TODO
+            questionIndex
         ) { innerPadding ->
             ComposeQuizQuestion(
-                question = testSet.questions[0], // TODO
+                question = testSet.questions[questionIndex.intValue],
                 innerPadding
             )
         }
@@ -238,10 +243,10 @@ fun ComposeQuizScaffold(
     drawerState: DrawerState,
     coroutineScope: CoroutineScope,
     testSet: TestSet,
-    questionIndex: Int,
+    questionIndex: MutableState<Int>,
     content: @Composable (PaddingValues) -> Unit = {}
 ) {
-    val question = testSet.questions[questionIndex]
+    val question = testSet.questions[questionIndex.value]
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -254,7 +259,9 @@ fun ComposeQuizScaffold(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            coroutineScope.launch { drawerState.open() }
+                            coroutineScope.launch {
+                                drawerState.open()
+                            }
                         }
                     ) {
                         Icon(Icons.Default.Menu, contentDescription = "Въпроси")
@@ -263,7 +270,7 @@ fun ComposeQuizScaffold(
                 title = {
                     val testSetID = testSet.id
                     val questionCount = testSet.questions.size
-                    val questionNumber = questionIndex + 1
+                    val questionNumber = questionIndex.value + 1
                     Text(
                         text = "Въпрос $questionNumber/$questionCount (#$testSetID)",
                         fontFamily = FontFamily.Serif,
@@ -314,8 +321,9 @@ fun ComposeQuizScaffold(
                 ) {
                     FloatingActionButton(
                         onClick = {
-                            // TODO: Set previous question in this activity
+                            if (questionIndex.value > 0) --questionIndex.value
                         },
+                        containerColor = if (questionIndex.value > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.padding(start = 32.dp, end = 16.dp)
                     ) {
                         Icon(
@@ -325,8 +333,9 @@ fun ComposeQuizScaffold(
                     }
                     FloatingActionButton(
                         onClick = {
-                            // TODO: Set next question in this activity
+                            if (questionIndex.value < testSet.questions.size - 1) ++questionIndex.value
                         },
+                        containerColor = if (questionIndex.value < testSet.questions.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
@@ -393,6 +402,7 @@ fun ComposeQuizNavigationDrawer(
     drawerState: DrawerState,
     coroutineScope: CoroutineScope,
     testSet: TestSet,
+    questionIndex: MutableState<Int>,
     content: @Composable () -> Unit = {}
 ) {
     ModalNavigationDrawer(
@@ -419,8 +429,9 @@ fun ComposeQuizNavigationDrawer(
                         )
                     }
                     item {
+                        val questionIndexVal = questionIndex.value
                         Text(
-                            text = "0/$questionCount отговорени", // TODO
+                            text = "$questionIndexVal/$questionCount отговорени",
                             fontSize = 20.sp,
                             modifier = Modifier.padding(vertical = 15.dp)
                         )
@@ -431,8 +442,10 @@ fun ComposeQuizNavigationDrawer(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             ComposeQuizNavigationQuestionCard(
-                                coroutineScope = coroutineScope,
-                                index = index * 2 + 1,
+                                drawerState,
+                                coroutineScope,
+                                index = index * 2,
+                                questionIndex,
                                 thumbnailID = testSet.questions[index * 2].thumbnailID
                             )
                             Spacer(
@@ -440,8 +453,10 @@ fun ComposeQuizNavigationDrawer(
                             )
                             if (index * 2 + 1 < questionCount) {
                                 ComposeQuizNavigationQuestionCard(
-                                    coroutineScope = coroutineScope,
-                                    index = index * 2 + 2,
+                                    drawerState,
+                                    coroutineScope,
+                                    index = index * 2 + 1,
+                                    questionIndex,
                                     thumbnailID = testSet.questions[index * 2 + 1].thumbnailID
                                 )
                             } else {
@@ -461,22 +476,31 @@ fun ComposeQuizNavigationDrawer(
 
 @Composable
 fun ComposeQuizNavigationQuestionCard(
+    drawerState: DrawerState,
     coroutineScope: CoroutineScope,
     index: Int,
+    questionIndex: MutableState<Int>,
     thumbnailID: String = ""
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(fraction = if (index % 2 == 0) 0.7f else 0.36f),
+        modifier = Modifier.fillMaxWidth(fraction = if (index % 2 == 0) 0.36f else 0.7f),
         onClick = {
-            // TODO: Switch to chosen question in this activity
+            coroutineScope.launch {
+                questionIndex.value = index
+                drawerState.close()
+            }
         },
+        colors = CardDefaults.cardColors(
+            containerColor = if (questionIndex.value == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+        ),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp)
         ) {
+            val number = index + 1
             Text(
-                text = if (index < 10) " $index.  " else "$index. ",
+                text = if (number < 10) " $number.  " else "$number. ",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -507,7 +531,9 @@ fun ComposeQuestionAnswerCard(
         onClick = {
             isPressed = !isPressed
         },
-        colors = CardDefaults.cardColors(containerColor = if (isPressed) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isPressed) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.surfaceVariant
+        ),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(

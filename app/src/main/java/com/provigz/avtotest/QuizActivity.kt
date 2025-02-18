@@ -367,7 +367,8 @@ fun ComposeQuizQuestion(
                 .fillMaxWidth()
                 .fillMaxHeight(fraction = if (question.pictureID.isNullOrEmpty() && question.videoID.isNullOrEmpty()) 0.3f else 0.5f)
                 .align(Alignment.TopCenter),
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = question.text,
@@ -379,6 +380,16 @@ fun ComposeQuizQuestion(
                     .padding(vertical = 10.dp)
                     .padding(end = 10.dp)
             )
+            if (!question.videoID.isNullOrEmpty()) {
+                // TODO: Video playback
+            } else if (!question.pictureID.isNullOrEmpty()) {
+                val pictureID = question.pictureID
+                AsyncImage(
+                    model = "https://avtoizpit.com/api/pictures/$pictureID.png?quality=4",
+                    contentDescription = "Изображение",
+                    modifier = Modifier.fillMaxSize(fraction = 0.9f)
+                )
+            }
         }
         LazyColumn(
             modifier = Modifier
@@ -429,9 +440,8 @@ fun ComposeQuizNavigationDrawer(
                         )
                     }
                     item {
-                        val questionIndexVal = questionIndex.value
                         Text(
-                            text = "$questionIndexVal/$questionCount отговорени",
+                            text = "0/$questionCount отговорени", // TODO: List answered questions
                             fontSize = 20.sp,
                             modifier = Modifier.padding(vertical = 15.dp)
                         )

@@ -2,6 +2,7 @@ package com.provigz.avtotest
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -44,11 +45,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -62,103 +63,179 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.provigz.avtotest.model.Answer
-import com.provigz.avtotest.model.Question
-import com.provigz.avtotest.model.TestSet
+import com.provigz.avtotest.db.TestSetDao
+import com.provigz.avtotest.db.TestSetDatabase
+import com.provigz.avtotest.db.entity.Answer
+import com.provigz.avtotest.db.entity.Property
+import com.provigz.avtotest.db.entity.QuestionQueried
+import com.provigz.avtotest.db.entity.TestSet
+import com.provigz.avtotest.db.entity.TestSetQueried
 import com.provigz.avtotest.model.TestSetRequest
 import com.provigz.avtotest.model.TestSetSubCategory
 import com.provigz.avtotest.ui.theme.AvtoTestTheme
 import com.provigz.avtotest.viewmodel.NetworkRequestViewModel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
 class QuizActivity : ComponentActivity() {
-    @SuppressLint("StateFlowValueCalledInComposition")
+    @SuppressLint("StateFlowValueCalledInComposition", "CoroutineCreationDuringComposition")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val viewModel = NetworkRequestViewModel(
-            endpoint = "test-sets",
-            method = "POST",
-            request = TestSetRequest(
-                subCategoryID = 3,
-                learningPlanID = 227,
-                languageID = 1
-            ),
-            responseClass = TestSet::class.java
-        )
-        viewModel.fetch()
+        val db = TestSetDatabase.getDatabase(context = this)
+        val testSetDao = db.testSetDao()
 
         enableEdgeToEdge()
         setContent {
             AvtoTestTheme {
-                val response by viewModel.responseState.collectAsState()
-                val finished by viewModel.finishedState.collectAsState()
-                val error by viewModel.errorState.collectAsState()
+                val testSetIDState by produceState<Pair<Boolean, String?>>(false to null) {
+                    val data = testSetDao.getProperty("startedTestSet")
+                    value = true to data
+                }
+                val (hasLoadedTestSetID, startedTestSetID) = testSetIDState
 
-                if (response != null) {
-                    ComposeQuizActivity(
-                        //context = this@QuizActivity,
-                        response!!
-                    )
-                } else if (finished) {
-                    AlertDialog(
-                        onDismissRequest = {},
-                        title = {
-                            Text(
-                                text = "Листовката не може да бъде заредена!"
+                if (!hasLoadedTestSetID) {
+                    ComposeLoadingPrompt()
+                } else if (startedTestSetID == null || startedTestSetID.isNullOrEmpty()) {
+                    val viewModel = remember {
+                        NetworkRequestViewModel(
+                            endpoint = "test-sets",
+                            method = "POST",
+                            request = TestSetRequest(
+                                subCategoryID = 3,
+                                learningPlanID = 227,
+                                languageID = 1
+                            ),
+                            responseClass = com.provigz.avtotest.model.TestSet::class.java
+                        )
+                    }
+                    LaunchedEffect(Unit) {
+                        viewModel.fetch()
+                    }
+
+                    val response by viewModel.responseState.collectAsState()
+                    val finished by viewModel.finishedState.collectAsState()
+                    val error by viewModel.errorState.collectAsState()
+
+                    if (response != null) {
+                        val testSet = remember { TestSet(response!!) }
+                        var testSetReady by remember { mutableStateOf(false) }
+                        LaunchedEffect(Unit) {
+                            testSet.insertQuestions(
+                                testSetDao,
+                                questions = response!!.questions
                             )
-                        },
-                        confirmButton = {
-                            Button(
-                                onClick = {
-                                    finish()
-                                }
-                            ) {
-                                Text(text = "OK")
-                            }
+                            testSetDao.insertTestSet(testSet)
+                            testSetDao.setProperty(
+                                Property(
+                                    name = "startedTestSet",
+                                    value = testSet.id.toString()
+                                )
+                            )
+                            testSetReady = true
                         }
-                    )
-                } else if (error != null) {
-                    AlertDialog(
-                        onDismissRequest = {},
-                        title = {
-                            Text(
-                                text = "Грешка при зареждането на листовка!"
+
+                        if (testSetReady) {
+                            ComposeQueryQuizActivity(
+                                testSetDao,
+                                testSet
                             )
-                        },
-                        text = {
-                            Text(
-                                text = error!!
-                            )
-                        },
-                        confirmButton = {
-                            Button(
-                                onClick = {
-                                    finish()
-                                }
-                            ) {
-                                Text(text = "OK")
-                            }
+                        } else {
+                            ComposeLoadingPrompt()
                         }
-                    )
+                    } else if (finished) {
+                        AlertDialog(
+                            onDismissRequest = {},
+                            title = {
+                                Text(
+                                    text = "Листовката не може да бъде заредена!"
+                                )
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        finish()
+                                    }
+                                ) {
+                                    Text(text = "OK")
+                                }
+                            }
+                        )
+                    } else if (error != null) {
+                        AlertDialog(
+                            onDismissRequest = {},
+                            title = {
+                                Text(
+                                    text = "Грешка при зареждането на листовка!"
+                                )
+                            },
+                            text = {
+                                Text(
+                                    text = error!!
+                                )
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        finish()
+                                    }
+                                ) {
+                                    Text(text = "OK")
+                                }
+                            }
+                        )
+                    } else {
+                        ComposeLoadingPrompt()
+                    }
                 } else {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(30.dp)
-                        )
-                        Spacer(
-                            modifier = Modifier.width(16.dp)
-                        )
-                        Text(
-                            text = "Зареждане на листовка...",
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                    val testSetState by produceState<Pair<Boolean, TestSet?>>(false to null) {
+                        val data = testSetDao.getTestSetByID(startedTestSetID.toInt())
+                        value = true to data
+                    }
+                    val (hasLoadedTestSet, testSet) = testSetState
+
+                    if (hasLoadedTestSet) {
+                        if (testSet != null) {
+                            ComposeQueryQuizActivity(
+                                testSetDao,
+                                testSet
+                            )
+                        } else {
+                            LaunchedEffect(Unit) {
+                                testSetDao.setProperty(
+                                    Property(
+                                        name = "startedTestSet",
+                                        value = ""
+                                    )
+                                )
+                            }
+                            AlertDialog(
+                                onDismissRequest = {},
+                                title = {
+                                    Text(
+                                        text = "Грешка при зареждането на започната листовка!"
+                                    )
+                                },
+                                text = {
+                                    Text(
+                                        text = "Започната листовка не е налична!"
+                                    )
+                                },
+                                confirmButton = {
+                                    Button(
+                                        onClick = {
+                                            finish()
+                                        }
+                                    ) {
+                                        Text(text = "OK")
+                                    }
+                                }
+                            )
+                        }
+                    } else {
+                        ComposeLoadingPrompt()
                     }
                 }
             }
@@ -166,71 +243,116 @@ class QuizActivity : ComponentActivity() {
     }
 }
 
+@Composable
+fun ComposeLoadingPrompt() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(30.dp)
+        )
+        Spacer(
+            modifier = Modifier.width(16.dp)
+        )
+        Text(
+            text = "Зареждане на листовка...",
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+@Composable
+fun ComposeQueryQuizActivity(
+    testSetDao: TestSetDao,
+    testSet: TestSet?
+) {
+    var testSetQueried by remember { mutableStateOf<TestSetQueried?>(null) }
+    LaunchedEffect(Unit) {
+        val result = testSet!!.query(testSetDao)
+        testSetQueried = result
+    }
+
+    if (testSetQueried != null) {
+        val testSetUpdateCount by testSetQueried!!.updateCount.collectAsState() // Used to trigger recompositions
+        Log.i("QuizActivity", "testSet was updated. Total updates: $testSetUpdateCount")
+
+        ComposeQuizActivity(
+            testSetQueried!!
+        )
+    } else {
+        ComposeLoadingPrompt()
+    }
+}
 
 @Preview(showBackground = true)
 @Composable
 fun ComposeQuizActivity(
     //context: QuizActivity = QuizActivity(),
-    testSet: TestSet = TestSet(
-        id = 216782909,
-        subCategory = TestSetSubCategory(
-            id = 3,
-            durationMinutes = 40
-        ),
-        questions = arrayOf(
-            Question(
-                id = 565436,
-                text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
-                thumbnailID = "",
-                pictureID = "",
-                videoID = "",
-                points = 1,
-                correctAnswers = 1,
-                answers = arrayOf(
-                    Answer(
-                        id = 4325,
-                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                        pictureID = ""
-                    ),
-                    Answer(
-                        id = 4326,
-                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                        pictureID = ""
-                    ),
-                    Answer(
-                        id = 4327,
-                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                        pictureID = ""
-                    ),
-                    Answer(
-                        id = 4328,
-                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                        pictureID = ""
+    testSet: TestSetQueried = TestSetQueried(
+        testSetDao = null,
+        base = TestSet(
+            com.provigz.avtotest.model.TestSet(
+                id = 216782909,
+                subCategory = TestSetSubCategory(
+                    id = 3,
+                    categoryID = 1,
+                    name = "B",
+                    durationMinutes = 40
+                ),
+                questions = arrayOf(
+                    com.provigz.avtotest.model.Question(
+                        id = 565436,
+                        text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
+                        thumbnailID = "",
+                        pictureID = "",
+                        videoID = "",
+                        points = 1,
+                        correctAnswers = 1,
+                        answers = arrayOf(
+                            com.provigz.avtotest.model.Answer(
+                                id = 4325,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = ""
+                            ),
+                            com.provigz.avtotest.model.Answer(
+                                id = 4326,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = ""
+                            ),
+                            com.provigz.avtotest.model.Answer(
+                                id = 4327,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = ""
+                            ),
+                            com.provigz.avtotest.model.Answer(
+                                id = 4328,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = ""
+                            )
+                        )
                     )
                 )
             )
         )
     )
 ) {
-    val questionIndex = remember { mutableIntStateOf(0) } // TODO: Save this in a state table for this TestSet
-
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
 
     ComposeQuizNavigationDrawer(
         drawerState = drawerState,
         coroutineScope = coroutineScope,
-        testSet,
-        questionIndex
+        testSet
     ) {
         ComposeQuizScaffold(
             drawerState = drawerState,
             coroutineScope = coroutineScope,
-            testSet,
-            questionIndex
+            testSet
         ) { innerPadding ->
             ComposeQuizQuestion(
-                question = testSet.questions[questionIndex.intValue],
+                testSet,
                 innerPadding
             )
         }
@@ -242,11 +364,13 @@ fun ComposeQuizActivity(
 fun ComposeQuizScaffold(
     drawerState: DrawerState,
     coroutineScope: CoroutineScope,
-    testSet: TestSet,
-    questionIndex: MutableState<Int>,
+    testSet: TestSetQueried,
     content: @Composable (PaddingValues) -> Unit = {}
 ) {
-    val question = testSet.questions[questionIndex.value]
+    if (testSet.questions.isEmpty()) {
+        return
+    }
+    val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -268,9 +392,9 @@ fun ComposeQuizScaffold(
                     }
                 },
                 title = {
-                    val testSetID = testSet.id
+                    val testSetID = testSet.base.id
                     val questionCount = testSet.questions.size
-                    val questionNumber = questionIndex.value + 1
+                    val questionNumber = testSet.base.stateCurrentQuestionIndex + 1
                     Text(
                         text = "Въпрос $questionNumber/$questionCount (#$testSetID)",
                         fontFamily = FontFamily.Serif,
@@ -295,8 +419,8 @@ fun ComposeQuizScaffold(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    val points = question.points
-                    val correctAnswers = question.correctAnswers
+                    val points = question.base.points
+                    val correctAnswers = question.base.correctAnswers
                     Text(
                         text = "Точки: $points",
                         fontSize = 20.sp,
@@ -321,9 +445,14 @@ fun ComposeQuizScaffold(
                 ) {
                     FloatingActionButton(
                         onClick = {
-                            if (questionIndex.value > 0) --questionIndex.value
+                            if (testSet.base.stateCurrentQuestionIndex > 0) {
+                                --testSet.base.stateCurrentQuestionIndex
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    testSet.save()
+                                }
+                            }
                         },
-                        containerColor = if (questionIndex.value > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                        containerColor = if (testSet.base.stateCurrentQuestionIndex > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.padding(start = 32.dp, end = 16.dp)
                     ) {
                         Icon(
@@ -333,9 +462,14 @@ fun ComposeQuizScaffold(
                     }
                     FloatingActionButton(
                         onClick = {
-                            if (questionIndex.value < testSet.questions.size - 1) ++questionIndex.value
+                            if (testSet.base.stateCurrentQuestionIndex < testSet.questions.size - 1) {
+                                ++testSet.base.stateCurrentQuestionIndex
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    testSet.save()
+                                }
+                            }
                         },
-                        containerColor = if (questionIndex.value < testSet.questions.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                        containerColor = if (testSet.base.stateCurrentQuestionIndex < testSet.questions.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
@@ -353,9 +487,15 @@ fun ComposeQuizScaffold(
 
 @Composable
 fun ComposeQuizQuestion(
-    question: Question,
+    testSet: TestSetQueried,
     innerPadding: PaddingValues
 ) {
+    val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
+
+    val questionID = question.base.id
+    val questionUpdateCount by question.updateCount.collectAsState() // Used to trigger recompositions
+    Log.i("QuizActivity", "Question $questionID was updated. Total updates: $questionUpdateCount")
+
     Box(
         modifier = Modifier
             .padding(innerPadding)
@@ -365,13 +505,13 @@ fun ComposeQuizQuestion(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(fraction = if (question.pictureID.isNullOrEmpty() && question.videoID.isNullOrEmpty()) 0.3f else 0.5f)
+                .fillMaxHeight(fraction = if (question.base.pictureID.isNullOrEmpty() && question.base.videoID.isNullOrEmpty()) 0.3f else 0.5f)
                 .align(Alignment.TopCenter),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = question.text,
+                text = question.base.text,
                 textAlign = TextAlign.Center,
                 lineHeight = 28.sp,
                 fontSize = 18.sp,
@@ -380,10 +520,10 @@ fun ComposeQuizQuestion(
                     .padding(vertical = 10.dp)
                     .padding(end = 10.dp)
             )
-            if (!question.videoID.isNullOrEmpty()) {
+            if (!question.base.videoID.isNullOrEmpty()) {
                 // TODO: Video playback
-            } else if (!question.pictureID.isNullOrEmpty()) {
-                val pictureID = question.pictureID
+            } else if (!question.base.pictureID.isNullOrEmpty()) {
+                val pictureID = question.base.pictureID
                 AsyncImage(
                     model = "https://avtoizpit.com/api/pictures/$pictureID.png?quality=4",
                     contentDescription = "Изображение",
@@ -394,14 +534,16 @@ fun ComposeQuizQuestion(
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(fraction = if (question.pictureID.isNullOrEmpty() && question.videoID.isNullOrEmpty()) 0.7f else 0.5f)
+                .fillMaxHeight(fraction = if (question.base.pictureID.isNullOrEmpty() && question.base.videoID.isNullOrEmpty()) 0.7f else 0.5f)
                 .align(Alignment.BottomCenter),
             contentPadding = PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(15.dp)
         ) {
             items(count = min(a = question.answers.size, b = 4)) { index ->
                 ComposeQuestionAnswerCard(
-                    answer = question.answers[index]
+                    answer = question.answers[index],
+                    index,
+                    question
                 )
             }
         }
@@ -412,8 +554,7 @@ fun ComposeQuizQuestion(
 fun ComposeQuizNavigationDrawer(
     drawerState: DrawerState,
     coroutineScope: CoroutineScope,
-    testSet: TestSet,
-    questionIndex: MutableState<Int>,
+    testSet: TestSetQueried,
     content: @Composable () -> Unit = {}
 ) {
     ModalNavigationDrawer(
@@ -432,7 +573,7 @@ fun ComposeQuizNavigationDrawer(
                     val questionCount = testSet.questions.size
 
                     item {
-                        val testSetID = testSet.id
+                        val testSetID = testSet.base.id
                         Text(
                             text = "Листовка #$testSetID",
                             fontWeight = FontWeight.Bold,
@@ -455,8 +596,8 @@ fun ComposeQuizNavigationDrawer(
                                 drawerState,
                                 coroutineScope,
                                 index = index * 2,
-                                questionIndex,
-                                thumbnailID = testSet.questions[index * 2].thumbnailID
+                                testSet,
+                                thumbnailID = testSet.questions[index * 2].base.thumbnailID
                             )
                             Spacer(
                                 modifier = Modifier.width(32.dp)
@@ -466,8 +607,8 @@ fun ComposeQuizNavigationDrawer(
                                     drawerState,
                                     coroutineScope,
                                     index = index * 2 + 1,
-                                    questionIndex,
-                                    thumbnailID = testSet.questions[index * 2 + 1].thumbnailID
+                                    testSet,
+                                    thumbnailID = testSet.questions[index * 2 + 1].base.thumbnailID
                                 )
                             } else {
                                 Spacer(
@@ -489,19 +630,22 @@ fun ComposeQuizNavigationQuestionCard(
     drawerState: DrawerState,
     coroutineScope: CoroutineScope,
     index: Int,
-    questionIndex: MutableState<Int>,
+    testSet: TestSetQueried,
     thumbnailID: String = ""
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(fraction = if (index % 2 == 0) 0.36f else 0.7f),
         onClick = {
             coroutineScope.launch {
-                questionIndex.value = index
+                testSet.base.stateCurrentQuestionIndex = index
                 drawerState.close()
+                CoroutineScope(Dispatchers.IO).launch {
+                    testSet.save()
+                }
             }
         },
         colors = CardDefaults.cardColors(
-            containerColor = if (questionIndex.value == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+            containerColor = if (testSet.base.stateCurrentQuestionIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
         ),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -532,17 +676,24 @@ fun ComposeQuizNavigationQuestionCard(
 
 @Composable
 fun ComposeQuestionAnswerCard(
-    answer: Answer
+    answer: Answer,
+    index: Int,
+    question: QuestionQueried
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = {
-            isPressed = !isPressed
+            if (index in question.state.stateSelectedAnswerIndexes) {
+                question.state.stateSelectedAnswerIndexes = question.state.stateSelectedAnswerIndexes.filterNot { it == index }
+            } else {
+                question.state.stateSelectedAnswerIndexes += index
+            }
+            CoroutineScope(Dispatchers.IO).launch {
+                question.save()
+            }
         },
         colors = CardDefaults.cardColors(
-            containerColor = if (isPressed) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (index in question.state.stateSelectedAnswerIndexes) MaterialTheme.colorScheme.inversePrimary else MaterialTheme.colorScheme.surfaceVariant
         ),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {

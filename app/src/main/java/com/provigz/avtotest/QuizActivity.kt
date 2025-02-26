@@ -276,7 +276,7 @@ fun ComposeQueryQuizActivity(
 
     if (testSetQueried != null) {
         val testSetUpdateCount by testSetQueried!!.updateCount.collectAsState() // Used to trigger recompositions
-        Log.i("QuizActivity", "testSet was updated. Total updates: $testSetUpdateCount")
+        Log.i("QuizActivity", "testSet was updated. Individual updates: $testSetUpdateCount")
 
         ComposeQuizActivity(
             testSetQueried!!
@@ -338,21 +338,30 @@ fun ComposeQuizActivity(
         )
     )
 ) {
+    if (testSet.questions.isEmpty()) {
+        return
+    }
+    val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
+
+    val questionID = question.base.id
+    val questionUpdateCount by question.updateCount.collectAsState() // Used to trigger recompositions
+    Log.i("QuizActivity", "Question $questionID was updated. Individual updates: $questionUpdateCount")
+
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
 
     ComposeQuizNavigationDrawer(
-        drawerState = drawerState,
-        coroutineScope = coroutineScope,
+        drawerState,
+        coroutineScope,
         testSet
     ) {
         ComposeQuizScaffold(
-            drawerState = drawerState,
-            coroutineScope = coroutineScope,
+            drawerState,
+            coroutineScope,
             testSet
         ) { innerPadding ->
             ComposeQuizQuestion(
-                testSet,
+                question,
                 innerPadding
             )
         }
@@ -367,9 +376,6 @@ fun ComposeQuizScaffold(
     testSet: TestSetQueried,
     content: @Composable (PaddingValues) -> Unit = {}
 ) {
-    if (testSet.questions.isEmpty()) {
-        return
-    }
     val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
 
     Scaffold(
@@ -487,15 +493,9 @@ fun ComposeQuizScaffold(
 
 @Composable
 fun ComposeQuizQuestion(
-    testSet: TestSetQueried,
+    question: QuestionQueried,
     innerPadding: PaddingValues
 ) {
-    val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
-
-    val questionID = question.base.id
-    val questionUpdateCount by question.updateCount.collectAsState() // Used to trigger recompositions
-    Log.i("QuizActivity", "Question $questionID was updated. Total updates: $questionUpdateCount")
-
     Box(
         modifier = Modifier
             .padding(innerPadding)
@@ -581,8 +581,15 @@ fun ComposeQuizNavigationDrawer(
                         )
                     }
                     item {
+                        var answeredQuestionCount = 0
+                        testSet.questions.forEach { question ->
+                            if (question.state.stateSelectedAnswerIndexes.isNotEmpty()) {
+                                ++answeredQuestionCount
+                            }
+                        }
+
                         Text(
-                            text = "0/$questionCount отговорени", // TODO: List answered questions
+                            text = "$answeredQuestionCount/$questionCount отговорени",
                             fontSize = 20.sp,
                             modifier = Modifier.padding(vertical = 15.dp)
                         )

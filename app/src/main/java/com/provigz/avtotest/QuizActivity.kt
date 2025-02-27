@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -73,6 +74,7 @@ import com.provigz.avtotest.db.entity.TestSetQueried
 import com.provigz.avtotest.model.TestSetRequest
 import com.provigz.avtotest.model.TestSetSubCategory
 import com.provigz.avtotest.ui.theme.AvtoTestTheme
+import com.provigz.avtotest.util.AsyncVideoPlayer
 import com.provigz.avtotest.viewmodel.NetworkRequestViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -496,22 +498,26 @@ fun ComposeQuizQuestion(
     question: QuestionQueried,
     innerPadding: PaddingValues
 ) {
+    var showVideoEndWarningDialog by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .padding(innerPadding)
             .fillMaxWidth()
             .fillMaxHeight(fraction = 0.88f)
     ) {
+        val videoMode = question.base.videoID != null && !question.state.stateVideoWatched
+        val questionHeightFraction = if (question.base.videoID == null && question.base.pictureID.isNullOrEmpty()) 0.3f else if (videoMode) 0.6f else 0.5f
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(fraction = if (question.base.pictureID.isNullOrEmpty() && question.base.videoID.isNullOrEmpty()) 0.3f else 0.5f)
+                .fillMaxHeight(fraction = questionHeightFraction)
                 .align(Alignment.TopCenter),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = question.base.text,
+                text = if (videoMode) "Моля, натиснете старт на видеото, за да се запознаете с въпроса." else question.base.text,
                 textAlign = TextAlign.Center,
                 lineHeight = 28.sp,
                 fontSize = 18.sp,
@@ -520,8 +526,28 @@ fun ComposeQuizQuestion(
                     .padding(vertical = 10.dp)
                     .padding(end = 10.dp)
             )
-            if (!question.base.videoID.isNullOrEmpty()) {
-                // TODO: Video playback
+            if (question.base.videoID != null) {
+                val videoID = question.base.videoID
+                if (question.state.stateVideoWatched) {
+                    AsyncImage(
+                        model = "https://avtoizpit.com/api/videos/$videoID/2.png?quality=4",
+                        contentDescription = "Изображение",
+                        modifier = Modifier.fillMaxSize(fraction = 0.9f)
+                    )
+                } else {
+                    AsyncVideoPlayer(
+                        videoUrl = "https://avtoizpit.com/api/videos/video$videoID.mp4",
+                        thumbnailUrl = "https://avtoizpit.com/api/videos/$videoID/2.png?quality=4",
+                        allowPlay = question.state.stateVideoTimesWatched < 3,
+                        onPlay = {
+                            ++question.state.stateVideoTimesWatched
+                            CoroutineScope(Dispatchers.IO).launch {
+                                question.save()
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(fraction = 0.9f)
+                    )
+                }
             } else if (!question.base.pictureID.isNullOrEmpty()) {
                 val pictureID = question.base.pictureID
                 AsyncImage(
@@ -534,18 +560,110 @@ fun ComposeQuizQuestion(
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(fraction = if (question.base.pictureID.isNullOrEmpty() && question.base.videoID.isNullOrEmpty()) 0.7f else 0.5f)
+                .fillMaxHeight(fraction = 1.0f - questionHeightFraction)
                 .align(Alignment.BottomCenter),
             contentPadding = PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(15.dp)
+            verticalArrangement = Arrangement.spacedBy(
+                15.dp,
+                if (videoMode) Alignment.CenterVertically else Alignment.CenterVertically
+            )
         ) {
-            items(count = min(a = question.answers.size, b = 4)) { index ->
-                ComposeQuestionAnswerCard(
-                    answer = question.answers[index],
-                    index,
-                    question
-                )
+            if (videoMode) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(fraction = 0.5f),
+                        onClick = {
+                            if (question.state.stateVideoTimesWatched < 3) {
+                                showVideoEndWarningDialog = true
+                            } else {
+                                question.state.stateVideoWatched = true
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    question.save()
+                                }
+                            }
+                        },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        elevation = CardDefaults.cardElevation(4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(vertical = 50.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Решавай въпроса",
+                                textAlign = TextAlign.Center,
+                                fontSize = 16.sp,
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 3,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+                item {
+                    val remainingPlays = 3 - question.state.stateVideoTimesWatched
+                    Text(
+                        text = if (remainingPlays > 0) "Може да гледате видеото още $remainingPlays " + (if (remainingPlays == 1) "път" else "пъти") + "." else "Не можете да гледате повече видеото!",
+                        textAlign = TextAlign.Center,
+                        fontSize = 16.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            } else {
+                items(count = min(a = question.answers.size, b = 4)) { index ->
+                    ComposeQuestionAnswerCard(
+                        answer = question.answers[index],
+                        index,
+                        question
+                    )
+                }
             }
+        }
+
+        if (showVideoEndWarningDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showVideoEndWarningDialog = false
+                },
+                title = {
+                    Text(
+                        text = "Внимание"
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Ако изберете решаване на въпроса, няма да можете да гледате повече видеото.\n\nСигурни ли сте, че искате да продължите?"
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            question.state.stateVideoWatched = true
+                            CoroutineScope(Dispatchers.IO).launch {
+                                question.save()
+                            }
+                        }
+                    ) {
+                        Text(text = "Да")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            showVideoEndWarningDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        )
+                    ) {
+                        Text(text = "Не")
+                    }
+                }
+            )
         }
     }
 }

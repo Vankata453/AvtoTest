@@ -7,7 +7,7 @@ data class Question(
     @SerializedName("text") val text: String,
     @SerializedName("thumbnailId") val thumbnailID: String?,
     @SerializedName("pictureId") val pictureID: String?,
-    @SerializedName("videoFileId") val videoID: String?,
+    @SerializedName("videoFileId") val videoID: Int?,
     @SerializedName("points") val points: Int,
     @SerializedName("correctAnswersCount") val correctAnswers: Int,
     @SerializedName("answers") val answers: Array<Answer>

@@ -61,6 +61,8 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.room.runtime)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
     kapt(libs.room.compiler)
     implementation(libs.room.ktx)
     testImplementation(libs.junit)

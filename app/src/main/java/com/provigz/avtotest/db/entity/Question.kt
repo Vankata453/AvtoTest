@@ -12,7 +12,7 @@ data class Question(
     val text: String,
     val thumbnailID: String?,
     val pictureID: String?,
-    val videoID: String?,
+    val videoID: Int?,
     val points: Int,
     val correctAnswers: Int,
     var answerIDs: List<Int>,

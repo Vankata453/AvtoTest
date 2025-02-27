@@ -10,9 +10,9 @@ import kotlinx.coroutines.flow.StateFlow
 data class Question(
     @PrimaryKey val id: Int,
     val text: String,
-    val thumbnailID: String,
-    val pictureID: String,
-    val videoID: String,
+    val thumbnailID: String?,
+    val pictureID: String?,
+    val videoID: String?,
     val points: Int,
     val correctAnswers: Int,
     var answerIDs: List<Int>,
@@ -25,9 +25,9 @@ data class Question(
     constructor(model: com.provigz.avtotest.model.Question) : this(
         id = model.id,
         text = model.text,
-        thumbnailID = if (model.thumbnailID.isNullOrBlank()) "" else model.thumbnailID,
-        pictureID = if (model.pictureID.isNullOrBlank()) "" else model.pictureID,
-        videoID = if (model.videoID.isNullOrBlank()) "" else model.videoID,
+        thumbnailID = model.thumbnailID,
+        pictureID = model.pictureID,
+        videoID = model.videoID,
         points = model.points,
         correctAnswers = model.correctAnswers,
         answerIDs = emptyList()

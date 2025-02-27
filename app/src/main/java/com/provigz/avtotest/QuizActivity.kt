@@ -98,7 +98,7 @@ class QuizActivity : ComponentActivity() {
 
                 if (!hasLoadedTestSetID) {
                     ComposeLoadingPrompt()
-                } else if (startedTestSetID == null || startedTestSetID.isNullOrEmpty()) {
+                } else if (startedTestSetID.isNullOrEmpty()) {
                     val viewModel = remember {
                         NetworkRequestViewModel(
                             endpoint = "test-sets",
@@ -305,9 +305,9 @@ fun ComposeQuizActivity(
                     com.provigz.avtotest.model.Question(
                         id = 565436,
                         text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
-                        thumbnailID = "",
-                        pictureID = "",
-                        videoID = "",
+                        thumbnailID = null,
+                        pictureID = null,
+                        videoID = null,
                         points = 1,
                         correctAnswers = 1,
                         answers = arrayOf(
@@ -638,7 +638,7 @@ fun ComposeQuizNavigationQuestionCard(
     coroutineScope: CoroutineScope,
     index: Int,
     testSet: TestSetQueried,
-    thumbnailID: String = ""
+    thumbnailID: String? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(fraction = if (index % 2 == 0) 0.36f else 0.7f),
@@ -715,7 +715,7 @@ fun ComposeQuestionAnswerCard(
                     contentDescription = answer.text,
                     modifier = Modifier.fillMaxWidth()
                 )
-            } else {
+            } else if (!answer.text.isNullOrEmpty()) {
                 Text(
                     text = answer.text,
                     fontSize = 16.sp,

@@ -13,12 +13,12 @@ data class TestSet(
     val categoryName: String,
     val durationMinutes: Int,
     var questionIDs: List<Int>,
-
-    /* STATE */
-    var stateCurrentQuestionIndex: Int = 0,
-    var stateDurationSecondsLeft: Int = durationMinutes,
-    var stateTimeFinished: Int = 0
 ) {
+    /* STATE */
+    var stateCurrentQuestionIndex: Int = 0
+    var stateDurationSecondsLeft: Int = durationMinutes
+    var stateTimeFinished: Int = 0
+
     constructor(model: com.provigz.avtotest.model.TestSet) : this(
         id = model.id,
         categoryID = model.subCategory.id,

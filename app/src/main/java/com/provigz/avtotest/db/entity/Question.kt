@@ -82,12 +82,12 @@ data class QuestionState(
 
     // Will preserve the question's answerIDs in their exact order within this testSet.
     val answerIDs: List<Int>,
-
+) {
     /* STATE */
-    var stateSelectedAnswerIndexes: List<Int> = emptyList(),
-    var stateVideoTimesWatched: Int = 0,
+    var stateSelectedAnswerIndexes: List<Int> = emptyList()
+    var stateVideoTimesWatched: Int = 0
     var stateVideoWatched: Boolean = false
-)
+}
 
 data class QuestionQueried(
     private val testSetDao: TestSetDao?,

@@ -7,9 +7,10 @@ import androidx.room.PrimaryKey
 data class Answer(
     @PrimaryKey val id: Int,
     val text: String?,
-    val pictureID: String?,
-    var correct: Boolean? = null
+    val pictureID: String?
 ) {
+    var correct: Boolean? = null
+
     constructor(model: com.provigz.avtotest.model.Answer) : this(
         id = model.id,
         text = model.text,

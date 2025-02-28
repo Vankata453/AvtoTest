@@ -1,6 +1,7 @@
 package com.provigz.avtotest
 
 import android.annotation.SuppressLint
+import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
@@ -56,6 +58,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -290,70 +297,122 @@ fun ComposeQueryQuizActivity(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(
+    name = "Light",
+    showBackground = true
+)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 fun ComposeQuizActivityPreview() {
-    ComposeQuizActivity(
-        TestSetQueried(
-            testSetDao = null,
-            base = TestSet(
-                com.provigz.avtotest.model.TestSet(
-                    id = 216782909,
-                    subCategory = TestSetSubCategory(
-                        id = 3,
-                        categoryID = 1,
-                        name = "B",
-                        durationMinutes = 40
-                    ),
-                    questions = emptyArray()
-                )
-            ),
-            questions = listOf(
-                QuestionQueried(
-                    testSetDao = null,
-                    base = Question(
-                        com.provigz.avtotest.model.Question(
-                            id = 565436,
-                            text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
-                            thumbnailID = null,
-                            pictureID = null,
-                            videoID = null,
-                            points = 1,
-                            correctAnswers = 1,
-                            answers = emptyArray()
+    AvtoTestTheme {
+        ComposeQuizActivity(
+            TestSetQueried(
+                testSetDao = null,
+                base = TestSet(
+                    com.provigz.avtotest.model.TestSet(
+                        id = 216782909,
+                        subCategory = TestSetSubCategory(
+                            id = 3,
+                            categoryID = 1,
+                            name = "B",
+                            durationMinutes = 40
+                        ),
+                        questions = emptyArray()
+                    )
+                ),
+                questions = listOf(
+                    QuestionQueried(
+                        testSetDao = null,
+                        base = Question(
+                            com.provigz.avtotest.model.Question(
+                                id = 565436,
+                                text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
+                                thumbnailID = null,
+                                pictureID = null,
+                                videoID = null,
+                                points = 1,
+                                correctAnswers = 1,
+                                answers = emptyArray()
+                            )
+                        ),
+                        state = QuestionState(
+                            testSetID = 216782909,
+                            questionID = 565436,
+                            answerIDs = emptyList()
+                        ),
+                        answers = listOf(
+                            Answer(
+                                id = 4325,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = null
+                            ),
+                            Answer(
+                                id = 4326,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = null
+                            ),
+                            Answer(
+                                id = 4327,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = null
+                            ),
+                            Answer(
+                                id = 4328,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = null
+                            )
                         )
                     ),
-                    state = QuestionState(
-                        testSetID = 216782909,
-                        questionID = 565436,
-                        answerIDs = emptyList()
-                    ),
-                    answers = listOf(
-                        Answer(
-                            id = 4325,
-                            text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                            pictureID = null
+                    QuestionQueried(
+                        testSetDao = null,
+                        base = Question(
+                            com.provigz.avtotest.model.Question(
+                                id = 565436,
+                                text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
+                                thumbnailID = null,
+                                pictureID = null,
+                                videoID = null,
+                                points = 1,
+                                correctAnswers = 1,
+                                answers = emptyArray()
+                            )
                         ),
-                        Answer(
-                            id = 4326,
-                            text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                            pictureID = null
+                        state = QuestionState(
+                            testSetID = 216782909,
+                            questionID = 565436,
+                            answerIDs = emptyList()
                         ),
-                        Answer(
-                            id = 4327,
-                            text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                            pictureID = null
-                        ),
-                        Answer(
-                            id = 4328,
-                            text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                            pictureID = null
+                        answers = listOf(
+                            Answer(
+                                id = 4325,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = null
+                            ),
+                            Answer(
+                                id = 4326,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = null
+                            ),
+                            Answer(
+                                id = 4327,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = null
+                            ),
+                            Answer(
+                                id = 4328,
+                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                                pictureID = null
+                            )
                         )
                     )
                 )
             )
         )
-    )
+    }
 }
 
 @Composable
@@ -742,7 +801,7 @@ fun ComposeQuizNavigationDrawer(
                                 coroutineScope,
                                 index = index * 2,
                                 testSet,
-                                thumbnailID = testSet.questions[index * 2].base.thumbnailID
+                                question = testSet.questions[index * 2]
                             )
                             Spacer(
                                 modifier = Modifier.width(32.dp)
@@ -753,7 +812,7 @@ fun ComposeQuizNavigationDrawer(
                                     coroutineScope,
                                     index = index * 2 + 1,
                                     testSet,
-                                    thumbnailID = testSet.questions[index * 2 + 1].base.thumbnailID
+                                    question = testSet.questions[index * 2 + 1]
                                 )
                             } else {
                                 Spacer(
@@ -776,10 +835,38 @@ fun ComposeQuizNavigationQuestionCard(
     coroutineScope: CoroutineScope,
     index: Int,
     testSet: TestSetQueried,
-    thumbnailID: String? = null
+    question: QuestionQueried
 ) {
+    var modifier = Modifier.fillMaxWidth(fraction = if (index % 2 == 0) 0.36f else 0.7f)
+    if (testSet.base.stateCurrentQuestionIndex == index) {
+        val borderColor = MaterialTheme.colorScheme.onBackground
+        modifier = modifier
+            .drawWithCache {
+                // Draw outer border
+                val border = 5.dp.toPx()
+                onDrawWithContent {
+                    drawContent()
+                    drawRoundRect(
+                        topLeft = Offset(
+                            x = -border / 2 + 1,
+                            y = -border / 2
+                        ),
+                        size = Size(
+                            width = size.width + border - 1,
+                            height = size.height + border
+                        ),
+                        color = borderColor,
+                        style = Stroke(width = border),
+                        cornerRadius = CornerRadius(
+                            x = border * 3F,
+                            y = border * 3F
+                        )
+                    )
+                }
+            }
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth(fraction = if (index % 2 == 0) 0.36f else 0.7f),
         onClick = {
             coroutineScope.launch {
                 testSet.base.stateCurrentQuestionIndex = index
@@ -790,9 +877,10 @@ fun ComposeQuizNavigationQuestionCard(
             }
         },
         colors = CardDefaults.cardColors(
-            containerColor = if (testSet.base.stateCurrentQuestionIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+            containerColor = if (question.state.stateSelectedAnswerIndexes.isEmpty()) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
         ),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(4.dp),
+        modifier = modifier
     ) {
         Row(
             modifier = Modifier.padding(16.dp)
@@ -803,16 +891,27 @@ fun ComposeQuizNavigationQuestionCard(
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
+
+            val thumbnailID = question.base.thumbnailID
             if (!thumbnailID.isNullOrEmpty()) {
                 AsyncImage(
                     model = "https://avtoizpit.com/api/pictures/$thumbnailID.png?thumbnail=true",
-                    contentDescription = "Thumbnail",
+                    contentDescription = "Въпрос със изображение",
+                    modifier = Modifier.size(26.dp)
+                )
+            } else if (question.base.videoID != null) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Видео въпрос",
+                    tint = MaterialTheme.colorScheme.surfaceContainer,
                     modifier = Modifier.size(26.dp)
                 )
             } else {
-                Text(
-                    text = "...",
-                    fontSize = 20.sp
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Въпрос",
+                    tint = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }

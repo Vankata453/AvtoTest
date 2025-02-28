@@ -68,7 +68,9 @@ import com.provigz.avtotest.db.TestSetDao
 import com.provigz.avtotest.db.TestSetDatabase
 import com.provigz.avtotest.db.entity.Answer
 import com.provigz.avtotest.db.entity.Property
+import com.provigz.avtotest.db.entity.Question
 import com.provigz.avtotest.db.entity.QuestionQueried
+import com.provigz.avtotest.db.entity.QuestionState
 import com.provigz.avtotest.db.entity.TestSet
 import com.provigz.avtotest.db.entity.TestSetQueried
 import com.provigz.avtotest.model.TestSetRequest
@@ -290,55 +292,73 @@ fun ComposeQueryQuizActivity(
 
 @Preview(showBackground = true)
 @Composable
-fun ComposeQuizActivity(
-    //context: QuizActivity = QuizActivity(),
-    testSet: TestSetQueried = TestSetQueried(
-        testSetDao = null,
-        base = TestSet(
-            com.provigz.avtotest.model.TestSet(
-                id = 216782909,
-                subCategory = TestSetSubCategory(
-                    id = 3,
-                    categoryID = 1,
-                    name = "B",
-                    durationMinutes = 40
-                ),
-                questions = arrayOf(
-                    com.provigz.avtotest.model.Question(
-                        id = 565436,
-                        text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
-                        thumbnailID = null,
-                        pictureID = null,
-                        videoID = null,
-                        points = 1,
-                        correctAnswers = 1,
-                        answers = arrayOf(
-                            com.provigz.avtotest.model.Answer(
-                                id = 4325,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = ""
-                            ),
-                            com.provigz.avtotest.model.Answer(
-                                id = 4326,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = ""
-                            ),
-                            com.provigz.avtotest.model.Answer(
-                                id = 4327,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = ""
-                            ),
-                            com.provigz.avtotest.model.Answer(
-                                id = 4328,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = ""
-                            )
+fun ComposeQuizActivityPreview() {
+    ComposeQuizActivity(
+        TestSetQueried(
+            testSetDao = null,
+            base = TestSet(
+                com.provigz.avtotest.model.TestSet(
+                    id = 216782909,
+                    subCategory = TestSetSubCategory(
+                        id = 3,
+                        categoryID = 1,
+                        name = "B",
+                        durationMinutes = 40
+                    ),
+                    questions = emptyArray()
+                )
+            ),
+            questions = listOf(
+                QuestionQueried(
+                    testSetDao = null,
+                    base = Question(
+                        com.provigz.avtotest.model.Question(
+                            id = 565436,
+                            text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
+                            thumbnailID = null,
+                            pictureID = null,
+                            videoID = null,
+                            points = 1,
+                            correctAnswers = 1,
+                            answers = emptyArray()
+                        )
+                    ),
+                    state = QuestionState(
+                        testSetID = 216782909,
+                        questionID = 565436,
+                        answerIDs = emptyList()
+                    ),
+                    answers = listOf(
+                        Answer(
+                            id = 4325,
+                            text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                            pictureID = null
+                        ),
+                        Answer(
+                            id = 4326,
+                            text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                            pictureID = null
+                        ),
+                        Answer(
+                            id = 4327,
+                            text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                            pictureID = null
+                        ),
+                        Answer(
+                            id = 4328,
+                            text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                            pictureID = null
                         )
                     )
                 )
             )
         )
     )
+}
+
+@Composable
+fun ComposeQuizActivity(
+    testSet: TestSetQueried
 ) {
     if (testSet.questions.isEmpty()) {
         return

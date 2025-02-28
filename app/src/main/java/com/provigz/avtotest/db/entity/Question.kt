@@ -90,7 +90,7 @@ data class QuestionState(
 )
 
 data class QuestionQueried(
-    private val testSetDao: TestSetDao,
+    private val testSetDao: TestSetDao?,
     val base: Question,
     val state: QuestionState,
     var answers: List<Answer>
@@ -101,6 +101,6 @@ data class QuestionQueried(
     suspend fun save() {
         ++_updateCount.value
 
-        testSetDao.insertQuestionState(state)
+        testSetDao!!.insertQuestionState(state)
     }
 }

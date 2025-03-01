@@ -30,6 +30,9 @@ interface TestSetDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAnswer(answer: Answer)
 
+    @Query("UPDATE testSet SET stateSecondsPassed = :secondsPassed WHERE id = :testSetID")
+    suspend fun updateTestSetSecondsPassed(testSetID: Int, secondsPassed: Int)
+
     /* PROPERTIES */
     @Query("SELECT value FROM property WHERE name = :name")
     suspend fun getProperty(name: String): String?

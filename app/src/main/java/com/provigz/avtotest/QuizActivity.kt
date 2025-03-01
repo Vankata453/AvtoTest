@@ -39,6 +39,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -48,6 +49,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -70,6 +72,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.provigz.avtotest.db.TestSetDao
 import com.provigz.avtotest.db.TestSetDatabase
@@ -87,7 +92,10 @@ import com.provigz.avtotest.util.AsyncVideoPlayer
 import com.provigz.avtotest.viewmodel.NetworkRequestViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.min
 
 class QuizActivity : ComponentActivity() {
@@ -286,6 +294,10 @@ fun ComposeQueryQuizActivity(
     }
 
     if (testSetQueried != null) {
+        ComposeQuizTimer(
+            testSetQueried!!
+        )
+
         val testSetUpdateCount by testSetQueried!!.updateCount.collectAsState() // Used to trigger recompositions
         Log.i("QuizActivity", "testSet was updated. Individual updates: $testSetUpdateCount")
 
@@ -294,6 +306,46 @@ fun ComposeQueryQuizActivity(
         )
     } else {
         ComposeLoadingPrompt()
+    }
+}
+
+@Composable
+fun ComposeQuizTimer(
+    testSet: TestSetQueried
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var job by remember { mutableStateOf<Job?>(null) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    job = coroutineScope.launch {
+                        while (true) {
+                            testSet.incrementSecondsPassed()
+                            if (testSet.base.stateSecondsPassed >= testSet.base.durationMinutes * 60) {
+                                job?.cancel()
+                                // TODO: Force-submit solution on timeout
+                            } else {
+                                delay(timeMillis = 1000L)
+                            }
+                        }
+                    }
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    job?.cancel()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            job?.cancel()
+        }
     }
 }
 
@@ -321,7 +373,7 @@ fun ComposeQuizActivityPreview() {
                             name = "B",
                             durationMinutes = 40
                         ),
-                        questions = emptyArray()
+                        questions = emptyArray(),
                     )
                 ),
                 questions = listOf(
@@ -502,21 +554,50 @@ fun ComposeQuizScaffold(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.primary,
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val points = question.base.points
-                    val correctAnswers = question.base.correctAnswers
-                    Text(
-                        text = "Точки: $points",
-                        fontSize = 20.sp,
-                        modifier = Modifier.padding(horizontal = 40.dp)
-                    )
-                    Text(
-                        text = "Верни: $correctAnswers",
-                        fontSize = 20.sp,
-                        modifier = Modifier.padding(horizontal = 40.dp)
+                    val durationSeconds = testSet.base.durationMinutes * 60
+                    val secondsPassed by testSet.secondsPassed.collectAsState()
+                    val secondsRemaining = durationSeconds - secondsPassed
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = String.format(
+                                locale = Locale.US,
+                                format = "%02d:%02d",
+                                secondsRemaining / 60, secondsRemaining % 60
+                            ),
+                            fontSize = 20.sp,
+                            modifier = Modifier.padding(horizontal = 40.dp)
+                        )
+                        val points = question.base.points
+                        Text(
+                            text = "Точки: $points",
+                            fontSize = 20.sp,
+                            modifier = Modifier.padding(horizontal = 20.dp)
+                        )
+                        val correctAnswers = question.base.correctAnswers
+                        Text(
+                            text = "Верни: $correctAnswers",
+                            fontSize = 20.sp,
+                            modifier = Modifier.padding(horizontal = 20.dp)
+                        )
+                    }
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = 0.95f)
+                            .fillMaxHeight(fraction = 0.4f),
+                        trackColor = MaterialTheme.colorScheme.primaryContainer,
+                        gapSize = 0.dp,
+                        drawStopIndicator = {},
+                        progress = {
+                            secondsPassed / durationSeconds.toFloat()
+                        }
                     )
                 }
             }

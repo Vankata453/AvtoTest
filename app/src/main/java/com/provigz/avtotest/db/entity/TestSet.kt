@@ -16,7 +16,7 @@ data class TestSet(
 ) {
     /* STATE */
     var stateCurrentQuestionIndex: Int = 0
-    var stateDurationSecondsLeft: Int = durationMinutes
+    var stateSecondsPassed: Int = 0
     var stateTimeFinished: Int = 0
 
     constructor(model: com.provigz.avtotest.model.TestSet) : this(
@@ -71,9 +71,20 @@ data class TestSetQueried(
     private var _updateCount = MutableStateFlow(0)
     val updateCount: StateFlow<Int> = _updateCount
 
+    private var _secondsPassed = MutableStateFlow(base.stateSecondsPassed)
+    val secondsPassed: StateFlow<Int> = _secondsPassed
+
     suspend fun save() {
         ++_updateCount.value
 
         testSetDao!!.insertTestSet(base)
+    }
+
+    suspend fun incrementSecondsPassed() {
+        _secondsPassed.value = ++base.stateSecondsPassed
+        testSetDao!!.updateTestSetSecondsPassed(
+            testSetID = base.id,
+            secondsPassed = base.stateSecondsPassed
+        )
     }
 }

@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,7 +29,6 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -514,91 +515,96 @@ fun ComposeQuizScaffold(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                colors = topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                ),
-                navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                drawerState.open()
+            Column {
+                TopAppBar(
+                    colors = topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    drawerState.open()
+                                }
                             }
+                        ) {
+                            Icon(Icons.Default.Menu, contentDescription = "Въпроси")
                         }
-                    ) {
-                        Icon(Icons.Default.Menu, contentDescription = "Въпроси")
+                    },
+                    title = {
+                        val testSetID = testSet.base.id
+                        val questionCount = testSet.questions.size
+                        val questionNumber = testSet.base.stateCurrentQuestionIndex + 1
+                        Text(
+                            text = "Въпрос $questionNumber/$questionCount (#$testSetID)",
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            // TODO: Submit solution
+                        }) {
+                            Icon(Icons.Default.Done, contentDescription = "Предай")
+                        }
                     }
-                },
-                title = {
-                    val testSetID = testSet.base.id
-                    val questionCount = testSet.questions.size
-                    val questionNumber = testSet.base.stateCurrentQuestionIndex + 1
-                    Text(
-                        text = "Въпрос $questionNumber/$questionCount (#$testSetID)",
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                actions = {
-                    IconButton(onClick = {
-                        // TODO: Submit solution
-                    }) {
-                        Icon(Icons.Default.Done, contentDescription = "Предай")
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            BottomAppBar(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.primary,
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(70.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
                 ) {
-                    val durationSeconds = testSet.base.durationMinutes * 60
-                    val secondsPassed by testSet.secondsPassed.collectAsState()
-                    val secondsRemaining = durationSeconds - secondsPassed
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = String.format(
-                                locale = Locale.US,
-                                format = "%02d:%02d",
-                                secondsRemaining / 60, secondsRemaining % 60
-                            ),
-                            fontSize = 20.sp,
-                            modifier = Modifier.padding(horizontal = 40.dp)
+                        val durationSeconds = testSet.base.durationMinutes * 60
+                        val secondsPassed by testSet.secondsPassed.collectAsState()
+                        val secondsRemaining = durationSeconds - secondsPassed
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction = 0.95f)
+                                .height(10.dp),
+                            trackColor = MaterialTheme.colorScheme.primaryContainer,
+                            gapSize = 0.dp,
+                            drawStopIndicator = {},
+                            progress = {
+                                secondsPassed / durationSeconds.toFloat()
+                            }
                         )
-                        val points = question.base.points
-                        Text(
-                            text = "Точки: $points",
-                            fontSize = 20.sp,
-                            modifier = Modifier.padding(horizontal = 20.dp)
+                        Spacer(
+                            modifier = Modifier.height(20.dp)
                         )
-                        val correctAnswers = question.base.correctAnswers
-                        Text(
-                            text = "Верни: $correctAnswers",
-                            fontSize = 20.sp,
-                            modifier = Modifier.padding(horizontal = 20.dp)
-                        )
-                    }
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth(fraction = 0.95f)
-                            .fillMaxHeight(fraction = 0.4f),
-                        trackColor = MaterialTheme.colorScheme.primaryContainer,
-                        gapSize = 0.dp,
-                        drawStopIndicator = {},
-                        progress = {
-                            secondsPassed / durationSeconds.toFloat()
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = String.format(
+                                    locale = Locale.US,
+                                    format = "%02d:%02d",
+                                    secondsRemaining / 60, secondsRemaining % 60
+                                ),
+                                fontSize = 20.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 40.dp)
+                            )
+                            val points = question.base.points
+                            Text(
+                                text = "Точки: $points",
+                                fontSize = 20.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp)
+                            )
+                            val correctAnswers = question.base.correctAnswers
+                            Text(
+                                text = "Верни: $correctAnswers",
+                                fontSize = 20.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp)
+                            )
                         }
-                    )
+                    }
                 }
             }
         },
@@ -802,6 +808,7 @@ fun ComposeQuizQuestion(
                 confirmButton = {
                     Button(
                         onClick = {
+                            showVideoEndWarningDialog = false
                             question.state.stateVideoWatched = true
                             CoroutineScope(Dispatchers.IO).launch {
                                 question.save()

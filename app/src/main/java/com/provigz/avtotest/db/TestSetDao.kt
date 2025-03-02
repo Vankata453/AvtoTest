@@ -13,33 +13,33 @@ import com.provigz.avtotest.db.entity.TestSet
 import com.provigz.avtotest.db.entity.Question
 import com.provigz.avtotest.db.entity.QuestionState
 
-@Dao
-interface TestSetDao {
-    suspend fun <T> getOrderedObjectsByIDs(
-        tableName: String,
-        ids: List<Int>,
-        queryFun: suspend (SupportSQLiteQuery) -> List<T>
-    ): List<T> {
-        if (ids.isEmpty()) {
-            return emptyList()
-        }
+suspend fun <T> getOrderedObjectsByIDs(
+    tableName: String,
+    ids: List<Int>,
+    queryFun: suspend (SupportSQLiteQuery) -> List<T>
+): List<T> {
+    if (ids.isEmpty()) {
+        return emptyList()
+    }
 
-        val caseStatement = ids.mapIndexed { index, id ->
-            "WHEN id = $id THEN $index"
-        }.joinToString(separator = " ")
+    val caseStatement = ids.mapIndexed { index, id ->
+        "WHEN id = $id THEN $index"
+    }.joinToString(separator = " ")
 
-        return queryFun(
-            SimpleSQLiteQuery(
-                query =
-                """
+    return queryFun(
+        SimpleSQLiteQuery(
+            query =
+            """
                     SELECT * FROM $tableName 
                     WHERE id IN (${ids.joinToString()}) 
                     ORDER BY CASE $caseStatement ELSE 999 END
                 """
-            )
         )
-    }
+    )
+}
 
+@Dao
+interface TestSetDao {
     @Query("SELECT * FROM testSet WHERE id = :id")
     suspend fun getTestSetByID(id: Int): TestSet?
     @Query("SELECT * FROM questionState WHERE testSetID = :testSetID AND questionID = :questionID")

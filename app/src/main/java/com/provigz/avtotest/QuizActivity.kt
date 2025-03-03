@@ -5,8 +5,10 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,6 +67,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -99,6 +102,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.max
 import kotlin.math.min
 
 class QuizActivity : ComponentActivity() {
@@ -579,7 +583,15 @@ fun ComposeQuizActivityPreview() {
             )
         )
     )
+
+    // For previewing results screen
     sampleTestSet.base.stateCurrentQuestionIndex = -1
+    sampleTestSet.base.stateAssessed = true
+    sampleTestSet.base.stateReceivedPoints = 87
+    sampleTestSet.base.stateTotalPoints = 97
+    sampleTestSet.base.stateCorrectQuestionsCount = 42
+    sampleTestSet.base.stateIncorrectQuestionsCount = 3
+    sampleTestSet.base.statePassed = true
 
     AvtoTestTheme {
         ComposeQuizActivity(
@@ -608,6 +620,7 @@ fun ComposeQuizActivity(
             if (testSet.questions.isNotEmpty()) {
                 if (testSet.base.stateCurrentQuestionIndex < 0) {
                     ComposeQuizResults(
+                        testSet,
                         innerPadding
                     )
                 } else {
@@ -621,8 +634,10 @@ fun ComposeQuizActivity(
                     )
 
                     ComposeQuizQuestion(
+                        innerPadding,
                         question,
-                        innerPadding
+                        interactive = testSet.base.stateTimeFinished == null,
+                        showResults = testSet.base.stateAssessed
                     )
                 }
             }
@@ -679,10 +694,12 @@ fun ComposeQuizScaffold(
                         }
                     },
                     actions = {
-                        IconButton(onClick = {
-                            showSubmitWarningDialog = true
-                        }) {
-                            Icon(Icons.Default.Done, contentDescription = "Предай")
+                        if (testSet.base.stateTimeFinished == null) {
+                            IconButton(onClick = {
+                                showSubmitWarningDialog = true
+                            }) {
+                                Icon(Icons.Default.Done, contentDescription = "Предай")
+                            }
                         }
                     }
                 )
@@ -699,7 +716,7 @@ fun ComposeQuizScaffold(
                         ) {
                             val durationSeconds = testSet.base.durationMinutes * 60
                             val secondsPassed by testSet.secondsPassed.collectAsState()
-                            val secondsRemaining = durationSeconds - secondsPassed
+                            val secondsRemaining = max(a = durationSeconds - secondsPassed, b = 0)
                             LinearProgressIndicator(
                                 modifier = Modifier
                                     .fillMaxWidth(fraction = 0.95f)
@@ -881,15 +898,147 @@ fun ComposeQuizScaffold(
 
 @Composable
 fun ComposeQuizResults(
+    testSet: TestSetQueried,
     innerPadding: PaddingValues
 ) {
-    // TODO
+    val activity = LocalActivity.current
+
+    Column(
+        modifier = Modifier
+            .padding(innerPadding)
+            .padding(top = 40.dp)
+            .fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Canvas(
+            modifier = Modifier.size(100.dp)
+        ) {
+            if (testSet.base.statePassed) {
+                drawCircle(color = Color.Green)
+                drawLine(
+                    color = Color.White,
+                    start = center.copy(x = center.x - 35.dp.toPx(), y = center.y),
+                    end = center.copy(x = center.x - 10.dp.toPx(), y = center.y + 25.dp.toPx()),
+                    strokeWidth = 20f
+                )
+                drawLine(
+                    color = Color.White,
+                    start = center.copy(x = center.x - 16.dp.toPx(), y = center.y + 25.dp.toPx()),
+                    end = center.copy(x = center.x + 30.dp.toPx(), y = center.y - 25.dp.toPx()),
+                    strokeWidth = 20f
+                )
+            } else {
+                drawCircle(color = Color.Red)
+                drawLine(
+                    color = Color.White,
+                    start = center.copy(x = center.x + 25.dp.toPx(), y = center.y + 25.dp.toPx()),
+                    end = center.copy(x = center.x - 25.dp.toPx(), y = center.y - 25.dp.toPx()),
+                    strokeWidth = 20f
+                )
+                drawLine(
+                    color = Color.White,
+                    start = center.copy(x = center.x - 25.dp.toPx(), y = center.y + 25.dp.toPx()),
+                    end = center.copy(x = center.x + 25.dp.toPx(), y = center.y - 25.dp.toPx()),
+                    strokeWidth = 20f
+                )
+            }
+        }
+        Text(
+            text = if (testSet.base.statePassed) "ДА" else "НЕ",
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Bold,
+            fontSize = 25.sp,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "${testSet.base.stateReceivedPoints} от ${testSet.base.stateTotalPoints} точки",
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Bold,
+            fontSize = 25.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 30.dp)
+        )
+        Text(
+            text = "${testSet.base.stateCorrectQuestionsCount} верни въпроса",
+            textAlign = TextAlign.Center,
+            fontSize = 20.sp,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "${testSet.base.stateIncorrectQuestionsCount} грешни въпроса",
+            textAlign = TextAlign.Center,
+            fontSize = 20.sp,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Card(
+            modifier = Modifier
+                .padding(horizontal = 12.dp)
+                .fillMaxWidth()
+                .fillMaxHeight(fraction = 0.6f)
+                .padding(top = 10.dp),
+            onClick = {
+                testSet.base.stateCurrentQuestionIndex = 0 // Go to first question
+                CoroutineScope(Dispatchers.IO).launch {
+                    testSet.save()
+                }
+            },
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            elevation = CardDefaults.cardElevation(4.dp)
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Преглед",
+                    textAlign = TextAlign.Center,
+                    fontSize = 16.sp,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        Card(
+            modifier = Modifier
+                .padding(horizontal = 12.dp)
+                .fillMaxWidth()
+                .fillMaxHeight(fraction = 0.8f),
+            onClick = {
+                activity?.finish()
+            },
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            elevation = CardDefaults.cardElevation(4.dp)
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Към начало",
+                    textAlign = TextAlign.Center,
+                    fontSize = 16.sp,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
 }
 
 @Composable
 fun ComposeQuizQuestion(
+    innerPadding: PaddingValues,
     question: QuestionQueried,
-    innerPadding: PaddingValues
+    interactive: Boolean,
+    showResults: Boolean
 ) {
     var showVideoEndWarningDialog by remember { mutableStateOf(false) }
 
@@ -899,7 +1048,7 @@ fun ComposeQuizQuestion(
             .fillMaxWidth()
             .fillMaxHeight(fraction = 0.88f)
     ) {
-        val videoMode = question.base.videoID != null && !question.state.stateVideoWatched
+        val videoMode = !showResults && question.base.videoID != null && !question.state.stateVideoWatched
         val questionHeightFraction = if (question.base.videoID == null && question.base.pictureID.isNullOrEmpty()) 0.3f else if (videoMode) 0.6f else 0.5f
         Column(
             modifier = Modifier
@@ -921,23 +1070,25 @@ fun ComposeQuizQuestion(
             )
             if (question.base.videoID != null) {
                 val videoID = question.base.videoID
-                if (question.state.stateVideoWatched) {
-                    AsyncImage(
-                        model = "https://avtoizpit.com/api/videos/$videoID/2.png?quality=4",
-                        contentDescription = "Изображение",
-                        modifier = Modifier.fillMaxSize(fraction = 0.9f)
-                    )
-                } else {
+                if (showResults || !question.state.stateVideoWatched) {
                     AsyncVideoPlayer(
                         videoUrl = "https://avtoizpit.com/api/videos/video$videoID.mp4",
                         thumbnailUrl = "https://avtoizpit.com/api/videos/$videoID/2.png?quality=4",
                         allowPlay = question.state.stateVideoTimesWatched < 3,
                         onPlay = {
-                            ++question.state.stateVideoTimesWatched
-                            CoroutineScope(Dispatchers.IO).launch {
-                                question.save()
+                            if (!question.state.stateVideoWatched) {
+                                ++question.state.stateVideoTimesWatched
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    question.save()
+                                }
                             }
                         },
+                        modifier = Modifier.fillMaxSize(fraction = 0.9f)
+                    )
+                } else {
+                    AsyncImage(
+                        model = "https://avtoizpit.com/api/videos/$videoID/2.png?quality=4",
+                        contentDescription = "Изображение",
                         modifier = Modifier.fillMaxSize(fraction = 0.9f)
                     )
                 }
@@ -1011,7 +1162,9 @@ fun ComposeQuizQuestion(
                     ComposeQuestionAnswerCard(
                         answer = question.answers[index],
                         index,
-                        question
+                        question,
+                        interactive,
+                        showResults
                     )
                 }
             }
@@ -1106,6 +1259,23 @@ fun ComposeQuizNavigationDrawer(
                             modifier = Modifier.padding(vertical = 15.dp)
                         )
                     }
+                    if (testSet.base.stateAssessed) {
+                        item {
+                            ComposeQuizNavigationQuestionCard(
+                                drawerState,
+                                coroutineScope,
+                                index = -1,
+                                testSet,
+                                question = null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(60.dp)
+                            )
+                            Spacer(
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    }
                     items(count = questionCount / 2 + (if (questionCount % 2 == 0) 0 else 1)) { index ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1150,12 +1320,13 @@ fun ComposeQuizNavigationQuestionCard(
     coroutineScope: CoroutineScope,
     index: Int,
     testSet: TestSetQueried,
-    question: QuestionQueried
+    question: QuestionQueried?,
+    modifier: Modifier = Modifier
 ) {
-    var modifier = Modifier.fillMaxWidth(fraction = if (index % 2 == 0) 0.36f else 0.7f)
+    var modifierCard = modifier.fillMaxWidth(fraction = if (index % 2 == 0) 0.36f else 0.7f)
     if (testSet.base.stateCurrentQuestionIndex == index) {
         val borderColor = MaterialTheme.colorScheme.onBackground
-        modifier = modifier
+        modifierCard = modifierCard
             .drawWithCache {
                 // Draw outer border
                 val border = 5.dp.toPx()
@@ -1181,6 +1352,21 @@ fun ComposeQuizNavigationQuestionCard(
             }
     }
 
+    var cardContainerColor = MaterialTheme.colorScheme.secondary
+    var cardContentColor = MaterialTheme.colorScheme.surfaceContainer
+    if (question != null) {
+        if (testSet.base.stateAssessed) {
+            cardContainerColor = if (question.isCorrect()) Color(color = 0xFF006400 /* Dark green */) else Color(color = 0xFF8B0000 /* Dark red */)
+            cardContentColor = Color.White
+        }
+        else if (question.state.stateSelectedAnswerIndexes.isEmpty()) {
+            cardContainerColor = MaterialTheme.colorScheme.secondary
+        }
+        else {
+            cardContainerColor = MaterialTheme.colorScheme.primary
+        }
+    }
+
     Card(
         onClick = {
             coroutineScope.launch {
@@ -1192,42 +1378,53 @@ fun ComposeQuizNavigationQuestionCard(
             }
         },
         colors = CardDefaults.cardColors(
-            containerColor = if (question.state.stateSelectedAnswerIndexes.isEmpty()) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+            containerColor = cardContainerColor
         ),
         elevation = CardDefaults.cardElevation(4.dp),
-        modifier = modifier
+        modifier = modifierCard
     ) {
         Row(
             modifier = Modifier.padding(16.dp)
         ) {
-            val number = index + 1
-            Text(
-                text = if (number < 10) " $number.  " else "$number. ",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
+            if (index < 0) { // "Results" button
+                Text(
+                    text = "Резултат",
+                    textAlign = TextAlign.Center,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else if (question != null) {
+                val number = index + 1
+                Text(
+                    text = if (number < 10) " $number.  " else "$number. ",
+                    color = cardContentColor,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
 
-            val thumbnailID = question.base.thumbnailID
-            if (!thumbnailID.isNullOrEmpty()) {
-                AsyncImage(
-                    model = "https://avtoizpit.com/api/pictures/$thumbnailID.png?thumbnail=true",
-                    contentDescription = "Въпрос със изображение",
-                    modifier = Modifier.size(26.dp)
-                )
-            } else if (question.base.videoID != null) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Видео въпрос",
-                    tint = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.size(26.dp)
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Въпрос",
-                    tint = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.size(26.dp)
-                )
+                val thumbnailID = question.base.thumbnailID
+                if (!thumbnailID.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = "https://avtoizpit.com/api/pictures/$thumbnailID.png?thumbnail=true",
+                        contentDescription = "Въпрос със изображение",
+                        modifier = Modifier.size(26.dp)
+                    )
+                } else if (question.base.videoID != null) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Видео въпрос",
+                        tint = cardContentColor,
+                        modifier = Modifier.size(26.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Въпрос",
+                        tint = cardContentColor,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             }
         }
     }
@@ -1237,18 +1434,22 @@ fun ComposeQuizNavigationQuestionCard(
 fun ComposeQuestionAnswerCard(
     answer: Answer,
     index: Int,
-    question: QuestionQueried
+    question: QuestionQueried,
+    interactive: Boolean,
+    showResults: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = {
-            if (index in question.state.stateSelectedAnswerIndexes) {
-                question.state.stateSelectedAnswerIndexes = question.state.stateSelectedAnswerIndexes.filterNot { it == index }
-            } else {
-                question.state.stateSelectedAnswerIndexes += index
-            }
-            CoroutineScope(Dispatchers.IO).launch {
-                question.save()
+            if (interactive) {
+                if (index in question.state.stateSelectedAnswerIndexes) {
+                    question.state.stateSelectedAnswerIndexes = question.state.stateSelectedAnswerIndexes.filterNot { it == index }
+                } else {
+                    question.state.stateSelectedAnswerIndexes += index
+                }
+                CoroutineScope(Dispatchers.IO).launch {
+                    question.save()
+                }
             }
         },
         colors = CardDefaults.cardColors(
@@ -1256,24 +1457,65 @@ fun ComposeQuestionAnswerCard(
         ),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!answer.pictureID.isNullOrEmpty()) {
-                val pictureID = answer.pictureID
-                AsyncImage(
-                    model = "https://avtoizpit.com/api/pictures/$pictureID.png?quality=4",
-                    contentDescription = answer.text,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else if (!answer.text.isNullOrEmpty()) {
-                Text(
-                    text = answer.text,
-                    fontSize = 16.sp,
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 3
-                )
+            Column(
+                modifier = Modifier
+                    .padding(12.dp)
+                    .fillMaxWidth(fraction = if (showResults) 0.9f else 1f)
+            ) {
+                if (!answer.pictureID.isNullOrEmpty()) {
+                    val pictureID = answer.pictureID
+                    AsyncImage(
+                        model = "https://avtoizpit.com/api/pictures/$pictureID.png?quality=4",
+                        contentDescription = answer.text,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else if (!answer.text.isNullOrEmpty()) {
+                    Text(
+                        text = answer.text,
+                        fontSize = 16.sp,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 3
+                    )
+                }
+            }
+            if (showResults) {
+                Canvas(
+                    modifier = Modifier.size(25.dp)
+                ) {
+                    if (answer.correct == true) {
+                        drawCircle(color = Color.Green)
+                        drawLine(
+                            color = Color.White,
+                            start = center.copy(x = center.x - 6.dp.toPx(), y = center.y),
+                            end = center.copy(x = center.x - 1.dp.toPx(), y = center.y + 5.dp.toPx()),
+                            strokeWidth = 5f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = center.copy(x = center.x - 3.dp.toPx(), y = center.y + 5.dp.toPx()),
+                            end = center.copy(x = center.x + 6.dp.toPx(), y = center.y - 5.dp.toPx()),
+                            strokeWidth = 5f
+                        )
+                    } else if (answer.correct == false) {
+                        drawCircle(color = Color.Red)
+                        drawLine(
+                            color = Color.White,
+                            start = center.copy(x = center.x - 5.dp.toPx(), y = center.y - 5.dp.toPx()),
+                            end = center.copy(x = center.x + 5.dp.toPx(), y = center.y + 5.dp.toPx()),
+                            strokeWidth = 5f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = center.copy(x = center.x - 5.dp.toPx(), y = center.y + 5.dp.toPx()),
+                            end = center.copy(x = center.x + 5.dp.toPx(), y = center.y - 5.dp.toPx()),
+                            strokeWidth = 5f
+                        )
+                    }
+                }
             }
         }
     }

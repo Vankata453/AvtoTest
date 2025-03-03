@@ -122,4 +122,15 @@ data class QuestionQueried(
             }
         }
     }
+
+    fun isCorrect(): Boolean {
+        var correctAnswerIndexes = emptyList<Int>()
+        answers.forEachIndexed { answerIndex, answer ->
+            if (answer.correct == true) {
+                correctAnswerIndexes += answerIndex
+            }
+        }
+
+        return correctAnswerIndexes == state.stateSelectedAnswerIndexes.sorted()
+    }
 }

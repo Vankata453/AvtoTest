@@ -3,6 +3,7 @@ package com.provigz.avtotest.db.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.provigz.avtotest.db.TestSetDao
+import com.provigz.avtotest.model.QuestionAssessed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -15,12 +16,7 @@ data class Question(
     val videoID: Int?,
     val points: Int,
     val correctAnswers: Int,
-    var answerIDs: List<Int>,
-
-    /* STATE */
-    var stateSelectedAnswerIndexes: List<Int> = emptyList(),
-    var stateVideoTimesWatched: Int = 0,
-    var stateVideoWatched: Boolean = false
+    var answerIDs: List<Int>
 ) {
     constructor(model: com.provigz.avtotest.model.Question) : this(
         id = model.id,
@@ -38,7 +34,12 @@ data class Question(
         answers: Array<com.provigz.avtotest.model.Answer>
     ) {
         answers.forEach { answerModel ->
-            testSetDao.insertAnswer(Answer(answerModel))
+            testSetDao.insertAnswer(
+                Answer(
+                    questionID = id,
+                    answerModel
+                )
+            )
             answerIDs += answerModel.id
         }
     }
@@ -102,5 +103,23 @@ data class QuestionQueried(
         ++_updateCount.value
 
         testSetDao!!.insertQuestionState(state)
+    }
+
+    suspend fun setAssessment(assessed: QuestionAssessed) {
+        answers.forEach { answer ->
+            run answerAssessedForeach@{
+                assessed.answers.forEach { answerAssessed ->
+                    if (answer.id == answerAssessed.id) {
+                        // Mark answer "correct" property, save to DB
+                        answer.correct = answerAssessed.correct
+                        testSetDao!!.updateAnswerSetCorrect(
+                            answer.id,
+                            answerAssessed.correct
+                        )
+                        return@answerAssessedForeach
+                    }
+                }
+            }
+        }
     }
 }

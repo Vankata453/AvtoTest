@@ -9,9 +9,9 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.provigz.avtotest.db.entity.Answer
 import com.provigz.avtotest.db.entity.Property
-import com.provigz.avtotest.db.entity.TestSet
 import com.provigz.avtotest.db.entity.Question
 import com.provigz.avtotest.db.entity.QuestionState
+import com.provigz.avtotest.db.entity.TestSet
 
 suspend fun <T> getOrderedObjectsByIDs(
     tableName: String,
@@ -30,10 +30,10 @@ suspend fun <T> getOrderedObjectsByIDs(
         SimpleSQLiteQuery(
             query =
             """
-                    SELECT * FROM $tableName 
-                    WHERE id IN (${ids.joinToString()}) 
-                    ORDER BY CASE $caseStatement ELSE 999 END
-                """
+                SELECT * FROM $tableName 
+                WHERE id IN (${ids.joinToString()}) 
+                ORDER BY CASE $caseStatement ELSE 999 END
+            """
         )
     )
 }
@@ -68,15 +68,18 @@ interface TestSetDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTestSet(testSet: TestSet)
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertQuestion(question: Question)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertQuestionState(questionState: QuestionState)
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAnswer(answer: Answer)
 
     @Query("UPDATE testSet SET stateSecondsPassed = :secondsPassed WHERE id = :testSetID")
     suspend fun updateTestSetSecondsPassed(testSetID: Int, secondsPassed: Int)
+
+    @Query("UPDATE answer SET correct = :correct WHERE id = :answerID")
+    suspend fun updateAnswerSetCorrect(answerID: Int, correct: Boolean)
 
     /* PROPERTIES */
     @Query("SELECT value FROM property WHERE name = :name")
@@ -84,4 +87,7 @@ interface TestSetDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun setProperty(property: Property)
+
+    @Query("DELETE FROM property WHERE name = :name")
+    suspend fun deleteProperty(name: String)
 }

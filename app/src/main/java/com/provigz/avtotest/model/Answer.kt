@@ -7,3 +7,8 @@ data class Answer(
     @SerializedName("text") val text: String?,
     @SerializedName("pictureId") val pictureID: String?
 )
+
+data class AnswerAssessed(
+    @SerializedName("id") val id: Int,
+    @SerializedName("correct") val correct: Boolean
+)

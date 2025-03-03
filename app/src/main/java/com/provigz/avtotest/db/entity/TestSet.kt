@@ -3,6 +3,8 @@ package com.provigz.avtotest.db.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.provigz.avtotest.db.TestSetDao
+import com.provigz.avtotest.model.TestSetAssessment
+import com.provigz.avtotest.model.TestSetAssessmentResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -15,9 +17,17 @@ data class TestSet(
     var questionIDs: List<Int>,
 ) {
     /* STATE */
-    var stateCurrentQuestionIndex: Int = 0
+    var stateCurrentQuestionIndex: Int = 0 // Negative indicates results page
     var stateSecondsPassed: Int = 0
-    var stateTimeFinished: Int = 0
+
+    /* STATE FINISHED */
+    var stateTimeFinished: Long? = null // null indicates this testSet hasn't yet been submitted
+    var stateAssessed: Boolean = false
+    var stateReceivedPoints: Int = 0
+    var stateTotalPoints: Int = 0
+    var stateCorrectQuestionsCount: Int = 0
+    var stateIncorrectQuestionsCount: Int = 0
+    var statePassed: Boolean = false
 
     constructor(model: com.provigz.avtotest.model.TestSet) : this(
         id = model.id,
@@ -26,6 +36,15 @@ data class TestSet(
         durationMinutes = model.subCategory.durationMinutes,
         questionIDs = emptyList()
     )
+
+    fun setAssessmentResult(assessmentResult: TestSetAssessmentResult) {
+        stateAssessed = true
+        stateReceivedPoints = assessmentResult.receivedPoints
+        stateTotalPoints = assessmentResult.totalPoints
+        stateCorrectQuestionsCount = assessmentResult.correctQuestionsCount
+        stateIncorrectQuestionsCount = assessmentResult.incorrectQuestionsCount
+        statePassed = assessmentResult.passed
+    }
 
     suspend fun insertQuestions(
         testSetDao: TestSetDao,
@@ -68,6 +87,7 @@ data class TestSetQueried(
     val base: TestSet,
     var questions: List<QuestionQueried> = emptyList()
 ) {
+    /* TRACKED STATES */
     private var _updateCount = MutableStateFlow(0)
     val updateCount: StateFlow<Int> = _updateCount
 
@@ -78,6 +98,31 @@ data class TestSetQueried(
         ++_updateCount.value
 
         testSetDao!!.insertTestSet(base)
+    }
+
+    suspend fun requestSubmit() {
+        base.stateTimeFinished = System.currentTimeMillis()
+        save()
+    }
+    suspend fun retractSubmit() {
+        base.stateTimeFinished = null
+        save()
+    }
+
+    suspend fun setAssessment(assessment: TestSetAssessment) {
+        base.setAssessmentResult(assessment.result)
+        questions.forEach { question ->
+            run questionAssessedForeach@{
+                assessment.testSet.questions.forEach { questionAssessed ->
+                    if (question.base.id == questionAssessed.id) {
+                        question.setAssessment(questionAssessed)
+                        return@questionAssessedForeach
+                    }
+                }
+            }
+        }
+        base.stateCurrentQuestionIndex = -1 // Direct user to results page
+        save()
     }
 
     suspend fun incrementSecondsPassed() {

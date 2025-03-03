@@ -86,6 +86,8 @@ import com.provigz.avtotest.db.entity.QuestionQueried
 import com.provigz.avtotest.db.entity.QuestionState
 import com.provigz.avtotest.db.entity.TestSet
 import com.provigz.avtotest.db.entity.TestSetQueried
+import com.provigz.avtotest.model.TestSetAssessment
+import com.provigz.avtotest.model.TestSetAssessmentRequest
 import com.provigz.avtotest.model.TestSetRequest
 import com.provigz.avtotest.model.TestSetSubCategory
 import com.provigz.avtotest.ui.theme.AvtoTestTheme
@@ -264,7 +266,9 @@ class QuizActivity : ComponentActivity() {
 }
 
 @Composable
-fun ComposeLoadingPrompt() {
+fun ComposeLoadingPrompt(
+    text: String = "Зареждане на листовка..."
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
@@ -277,7 +281,7 @@ fun ComposeLoadingPrompt() {
             modifier = Modifier.width(16.dp)
         )
         Text(
-            text = "Зареждане на листовка...",
+            text,
             color = MaterialTheme.colorScheme.primary
         )
     }
@@ -302,9 +306,107 @@ fun ComposeQueryQuizActivity(
         val testSetUpdateCount by testSetQueried!!.updateCount.collectAsState() // Used to trigger recompositions
         Log.i("QuizActivity", "testSet was updated. Individual updates: $testSetUpdateCount")
 
-        ComposeQuizActivity(
-            testSetQueried!!
-        )
+        if (testSetQueried!!.base.stateTimeFinished != null && !testSetQueried!!.base.stateAssessed) {
+            /* Request assessment and await it */
+            val testSetID = testSet!!.id
+            val viewModel = remember {
+                NetworkRequestViewModel(
+                    endpoint = "test-sets/$testSetID/assessment",
+                    method = "POST",
+                    request = TestSetAssessmentRequest(
+                        testSetQueried!!
+                    ),
+                    responseClass = TestSetAssessment::class.java
+                )
+            }
+            LaunchedEffect(Unit) {
+                viewModel.fetch()
+            }
+
+            val response by viewModel.responseState.collectAsState()
+            val finished by viewModel.finishedState.collectAsState()
+            val error by viewModel.errorState.collectAsState()
+
+            if (response != null) {
+                var testSetReady by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    testSetQueried!!.setAssessment(response!!)
+                    testSetDao.deleteProperty(name = "startedTestSet")
+                    testSetReady = true
+                }
+
+                if (testSetReady) {
+                    ComposeQuizActivity(
+                        testSetQueried!!
+                    )
+                } else {
+                    ComposeLoadingPrompt(
+                        text = "Зареждане на резултат..."
+                    )
+                }
+            } else if (finished) {
+                AlertDialog(
+                    onDismissRequest = {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            testSetQueried!!.retractSubmit()
+                        }
+                    },
+                    title = {
+                        Text(
+                            text = "Резултат на листовката не може да бъде зареден!"
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    testSetQueried!!.retractSubmit()
+                                }
+                            }
+                        ) {
+                            Text(text = "OK")
+                        }
+                    }
+                )
+            } else if (error != null) {
+                AlertDialog(
+                    onDismissRequest = {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            testSetQueried!!.retractSubmit()
+                        }
+                    },
+                    title = {
+                        Text(
+                            text = "Грешка при зареждането на резултат на листовката!"
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = error!!
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    testSetQueried!!.retractSubmit()
+                                }
+                            }
+                        ) {
+                            Text(text = "OK")
+                        }
+                    }
+                )
+            } else {
+                ComposeLoadingPrompt(
+                    text = "Зареждане на резултат..."
+                )
+            }
+        } else {
+            ComposeQuizActivity(
+                testSetQueried!!
+            )
+        }
     } else {
         ComposeLoadingPrompt()
     }
@@ -319,6 +421,11 @@ fun ComposeQuizTimer(
 
     var job by remember { mutableStateOf<Job?>(null) }
 
+    if (testSet.base.stateTimeFinished != null) {
+        job?.cancel()
+        return
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -328,7 +435,9 @@ fun ComposeQuizTimer(
                             testSet.incrementSecondsPassed()
                             if (testSet.base.stateSecondsPassed >= testSet.base.durationMinutes * 60) {
                                 job?.cancel()
-                                // TODO: Force-submit solution on timeout
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    testSet.requestSubmit()
+                                }
                             } else {
                                 delay(timeMillis = 1000L)
                             }
@@ -361,109 +470,120 @@ fun ComposeQuizTimer(
 )
 @Composable
 fun ComposeQuizActivityPreview() {
-    AvtoTestTheme {
-        ComposeQuizActivity(
-            TestSetQueried(
+    val sampleTestSet = TestSetQueried(
+        testSetDao = null,
+        base = TestSet(
+            com.provigz.avtotest.model.TestSet(
+                id = 216782909,
+                subCategory = TestSetSubCategory(
+                    id = 3,
+                    categoryID = 1,
+                    name = "B",
+                    durationMinutes = 40
+                ),
+                questions = emptyArray(),
+            )
+        ),
+        questions = listOf(
+            QuestionQueried(
                 testSetDao = null,
-                base = TestSet(
-                    com.provigz.avtotest.model.TestSet(
-                        id = 216782909,
-                        subCategory = TestSetSubCategory(
-                            id = 3,
-                            categoryID = 1,
-                            name = "B",
-                            durationMinutes = 40
-                        ),
-                        questions = emptyArray(),
+                base = Question(
+                    com.provigz.avtotest.model.Question(
+                        id = 565436,
+                        text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
+                        thumbnailID = null,
+                        pictureID = null,
+                        videoID = null,
+                        points = 1,
+                        correctAnswers = 1,
+                        answers = emptyArray()
                     )
                 ),
-                questions = listOf(
-                    QuestionQueried(
-                        testSetDao = null,
-                        base = Question(
-                            com.provigz.avtotest.model.Question(
-                                id = 565436,
-                                text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
-                                thumbnailID = null,
-                                pictureID = null,
-                                videoID = null,
-                                points = 1,
-                                correctAnswers = 1,
-                                answers = emptyArray()
-                            )
-                        ),
-                        state = QuestionState(
-                            testSetID = 216782909,
-                            questionID = 565436,
-                            answerIDs = emptyList()
-                        ),
-                        answers = listOf(
-                            Answer(
-                                id = 4325,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = null
-                            ),
-                            Answer(
-                                id = 4326,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = null
-                            ),
-                            Answer(
-                                id = 4327,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = null
-                            ),
-                            Answer(
-                                id = 4328,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = null
-                            )
-                        )
+                state = QuestionState(
+                    testSetID = 216782909,
+                    questionID = 565436,
+                    answerIDs = emptyList()
+                ),
+                answers = listOf(
+                    Answer(
+                        id = 4325,
+                        questionID = 565436,
+                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                        pictureID = null
                     ),
-                    QuestionQueried(
-                        testSetDao = null,
-                        base = Question(
-                            com.provigz.avtotest.model.Question(
-                                id = 565436,
-                                text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
-                                thumbnailID = null,
-                                pictureID = null,
-                                videoID = null,
-                                points = 1,
-                                correctAnswers = 1,
-                                answers = emptyArray()
-                            )
-                        ),
-                        state = QuestionState(
-                            testSetID = 216782909,
-                            questionID = 565436,
-                            answerIDs = emptyList()
-                        ),
-                        answers = listOf(
-                            Answer(
-                                id = 4325,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = null
-                            ),
-                            Answer(
-                                id = 4326,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = null
-                            ),
-                            Answer(
-                                id = 4327,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = null
-                            ),
-                            Answer(
-                                id = 4328,
-                                text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
-                                pictureID = null
-                            )
-                        )
+                    Answer(
+                        id = 4326,
+                        questionID = 565436,
+                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                        pictureID = null
+                    ),
+                    Answer(
+                        id = 4327,
+                        questionID = 565436,
+                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                        pictureID = null
+                    ),
+                    Answer(
+                        id = 4328,
+                        questionID = 565436,
+                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                        pictureID = null
+                    )
+                )
+            ),
+            QuestionQueried(
+                testSetDao = null,
+                base = Question(
+                    com.provigz.avtotest.model.Question(
+                        id = 565436,
+                        text = "Водачът на ППС е задължен да подаде сигнал към останалите участници в движението:",
+                        thumbnailID = null,
+                        pictureID = null,
+                        videoID = null,
+                        points = 1,
+                        correctAnswers = 1,
+                        answers = emptyArray()
+                    )
+                ),
+                state = QuestionState(
+                    testSetID = 216782909,
+                    questionID = 565436,
+                    answerIDs = emptyList()
+                ),
+                answers = listOf(
+                    Answer(
+                        id = 4325,
+                        questionID = 565436,
+                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                        pictureID = null
+                    ),
+                    Answer(
+                        id = 4326,
+                        questionID = 565436,
+                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                        pictureID = null
+                    ),
+                    Answer(
+                        id = 4327,
+                        questionID = 565436,
+                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                        pictureID = null
+                    ),
+                    Answer(
+                        id = 4328,
+                        questionID = 565436,
+                        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to",
+                        pictureID = null
                     )
                 )
             )
+        )
+    )
+    sampleTestSet.base.stateCurrentQuestionIndex = -1
+
+    AvtoTestTheme {
+        ComposeQuizActivity(
+            testSet = sampleTestSet
         )
     }
 }
@@ -472,15 +592,6 @@ fun ComposeQuizActivityPreview() {
 fun ComposeQuizActivity(
     testSet: TestSetQueried
 ) {
-    if (testSet.questions.isEmpty()) {
-        return
-    }
-    val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
-
-    val questionID = question.base.id
-    val questionUpdateCount by question.updateCount.collectAsState() // Used to trigger recompositions
-    Log.i("QuizActivity", "Question $questionID was updated. Individual updates: $questionUpdateCount")
-
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
 
@@ -494,10 +605,27 @@ fun ComposeQuizActivity(
             coroutineScope,
             testSet
         ) { innerPadding ->
-            ComposeQuizQuestion(
-                question,
-                innerPadding
-            )
+            if (testSet.questions.isNotEmpty()) {
+                if (testSet.base.stateCurrentQuestionIndex < 0) {
+                    ComposeQuizResults(
+                        innerPadding
+                    )
+                } else {
+                    val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
+
+                    val questionID = question.base.id
+                    val questionUpdateCount by question.updateCount.collectAsState() // Used to trigger recompositions
+                    Log.i(
+                        "QuizActivity",
+                        "Question $questionID was updated. Individual updates: $questionUpdateCount"
+                    )
+
+                    ComposeQuizQuestion(
+                        question,
+                        innerPadding
+                    )
+                }
+            }
         }
     }
 }
@@ -510,7 +638,7 @@ fun ComposeQuizScaffold(
     testSet: TestSetQueried,
     content: @Composable (PaddingValues) -> Unit = {}
 ) {
-    val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
+    var showSubmitWarningDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -534,129 +662,228 @@ fun ComposeQuizScaffold(
                     },
                     title = {
                         val testSetID = testSet.base.id
-                        val questionCount = testSet.questions.size
-                        val questionNumber = testSet.base.stateCurrentQuestionIndex + 1
-                        Text(
-                            text = "Въпрос $questionNumber/$questionCount (#$testSetID)",
-                            fontFamily = FontFamily.Serif,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (testSet.base.stateCurrentQuestionIndex < 0) {
+                            Text(
+                                text = "Резултат на #$testSetID",
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            val questionCount = testSet.questions.size
+                            val questionNumber = testSet.base.stateCurrentQuestionIndex + 1
+                            Text(
+                                text = "Въпрос $questionNumber/$questionCount (#$testSetID)",
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     },
                     actions = {
                         IconButton(onClick = {
-                            // TODO: Submit solution
+                            showSubmitWarningDialog = true
                         }) {
                             Icon(Icons.Default.Done, contentDescription = "Предай")
                         }
                     }
                 )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(70.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                if (testSet.base.stateCurrentQuestionIndex >= 0) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(70.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                     ) {
-                        val durationSeconds = testSet.base.durationMinutes * 60
-                        val secondsPassed by testSet.secondsPassed.collectAsState()
-                        val secondsRemaining = durationSeconds - secondsPassed
-                        LinearProgressIndicator(
-                            modifier = Modifier
-                                .fillMaxWidth(fraction = 0.95f)
-                                .height(10.dp),
-                            trackColor = MaterialTheme.colorScheme.primaryContainer,
-                            gapSize = 0.dp,
-                            drawStopIndicator = {},
-                            progress = {
-                                secondsPassed / durationSeconds.toFloat()
-                            }
-                        )
-                        Spacer(
-                            modifier = Modifier.height(20.dp)
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
-                                text = String.format(
-                                    locale = Locale.US,
-                                    format = "%02d:%02d",
-                                    secondsRemaining / 60, secondsRemaining % 60
-                                ),
-                                fontSize = 20.sp,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 40.dp)
+                            val durationSeconds = testSet.base.durationMinutes * 60
+                            val secondsPassed by testSet.secondsPassed.collectAsState()
+                            val secondsRemaining = durationSeconds - secondsPassed
+                            LinearProgressIndicator(
+                                modifier = Modifier
+                                    .fillMaxWidth(fraction = 0.95f)
+                                    .height(10.dp),
+                                trackColor = MaterialTheme.colorScheme.primaryContainer,
+                                gapSize = 0.dp,
+                                drawStopIndicator = {},
+                                progress = {
+                                    secondsPassed / durationSeconds.toFloat()
+                                }
                             )
-                            val points = question.base.points
-                            Text(
-                                text = "Точки: $points",
-                                fontSize = 20.sp,
-                                modifier = Modifier.padding(horizontal = 20.dp)
+                            Spacer(
+                                modifier = Modifier.height(20.dp)
                             )
-                            val correctAnswers = question.base.correctAnswers
-                            Text(
-                                text = "Верни: $correctAnswers",
-                                fontSize = 20.sp,
-                                modifier = Modifier.padding(horizontal = 20.dp)
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = String.format(
+                                        locale = Locale.US,
+                                        format = "%02d:%02d",
+                                        secondsRemaining / 60, secondsRemaining % 60
+                                    ),
+                                    fontSize = 20.sp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 40.dp)
+                                )
+                                val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
+                                val points = question.base.points
+                                Text(
+                                    text = "Точки: $points",
+                                    fontSize = 20.sp,
+                                    modifier = Modifier.padding(horizontal = 20.dp)
+                                )
+                                val correctAnswers = question.base.correctAnswers
+                                Text(
+                                    text = "Верни: $correctAnswers",
+                                    fontSize = 20.sp,
+                                    modifier = Modifier.padding(horizontal = 20.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
         },
         floatingActionButton = {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
+            if (testSet.base.stateCurrentQuestionIndex >= 0) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.BottomCenter
                 ) {
-                    FloatingActionButton(
-                        onClick = {
-                            if (testSet.base.stateCurrentQuestionIndex > 0) {
-                                --testSet.base.stateCurrentQuestionIndex
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    testSet.save()
-                                }
-                            }
-                        },
-                        containerColor = if (testSet.base.stateCurrentQuestionIndex > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(start = 32.dp, end = 16.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Предишен"
-                        )
-                    }
-                    FloatingActionButton(
-                        onClick = {
-                            if (testSet.base.stateCurrentQuestionIndex < testSet.questions.size - 1) {
-                                ++testSet.base.stateCurrentQuestionIndex
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    testSet.save()
+                        FloatingActionButton(
+                            onClick = {
+                                if (testSet.base.stateCurrentQuestionIndex > 0) {
+                                    --testSet.base.stateCurrentQuestionIndex
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        testSet.save()
+                                    }
                                 }
-                            }
-                        },
-                        containerColor = if (testSet.base.stateCurrentQuestionIndex < testSet.questions.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Следващ"
-                        )
+                            },
+                            containerColor = if (testSet.base.stateCurrentQuestionIndex > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(start = 32.dp, end = 16.dp)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Предишен"
+                            )
+                        }
+                        FloatingActionButton(
+                            onClick = {
+                                if (testSet.base.stateCurrentQuestionIndex < testSet.questions.size - 1) {
+                                    ++testSet.base.stateCurrentQuestionIndex
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        testSet.save()
+                                    }
+                                }
+                            },
+                            containerColor = if (testSet.base.stateCurrentQuestionIndex < testSet.questions.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Следващ"
+                            )
+                        }
                     }
                 }
             }
         }
     ) { innerPadding ->
         content(innerPadding)
+
+        if (showSubmitWarningDialog) {
+            var allQuestionsAnswered = true
+            run questionsForeach@{
+                testSet.questions.forEach { questionIt ->
+                    if (questionIt.state.stateSelectedAnswerIndexes.isEmpty()) {
+                        allQuestionsAnswered = false
+                        return@questionsForeach
+                    }
+                }
+            }
+
+            if (allQuestionsAnswered) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showSubmitWarningDialog = false
+                    },
+                    title = {
+                        Text(
+                            text = "Информация"
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "Имате още време до края на изпита. Как желаете да продължите?"
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showSubmitWarningDialog = false
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    testSet.requestSubmit()
+                                }
+                            }
+                        ) {
+                            Text(text = "Предавам")
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = {
+                                showSubmitWarningDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Text(text = "Отказ")
+                        }
+                    }
+                )
+            } else {
+                AlertDialog(
+                    onDismissRequest = {
+                        showSubmitWarningDialog = false
+                    },
+                    title = {
+                        Text(
+                            text = "Внимание"
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "Имате неотговорени въпроси. Моля, отговорете на всички въпроси."
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showSubmitWarningDialog = false
+                            }
+                        ) {
+                            Text(text = "OK")
+                        }
+                    }
+                )
+            }
+        }
     }
+}
+
+@Composable
+fun ComposeQuizResults(
+    innerPadding: PaddingValues
+) {
+    // TODO
 }
 
 @Composable

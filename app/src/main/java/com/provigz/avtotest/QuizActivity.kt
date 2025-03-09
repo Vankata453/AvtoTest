@@ -96,6 +96,7 @@ import com.provigz.avtotest.model.TestSetRequest
 import com.provigz.avtotest.model.TestSetSubCategory
 import com.provigz.avtotest.ui.theme.AvtoTestTheme
 import com.provigz.avtotest.util.AsyncVideoPlayer
+import com.provigz.avtotest.util.isOnline
 import com.provigz.avtotest.viewmodel.NetworkRequestViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -117,6 +118,34 @@ class QuizActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AvtoTestTheme {
+                if (!isOnline()) {
+                    AlertDialog(
+                        onDismissRequest = {},
+                        title = {
+                            Text(
+                                text = "Няма връзка"
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = "Не може да се осъществи връзка с AvtoIzpit!\n" +
+                                        "\n" +
+                                        "Уверете се, че сте свързани към интернет!"
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    finish()
+                                }
+                            ) {
+                                Text(text = "OK")
+                            }
+                        }
+                    )
+                    return@AvtoTestTheme
+                }
+
                 val testSetIDState by produceState<Pair<Boolean, String?>>(false to null) {
                     val data = testSetDao.getProperty("startedTestSet")
                     value = true to data

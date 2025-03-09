@@ -21,6 +21,7 @@ data class TestSet(
     var stateSecondsPassed: Int = 0
 
     /* STATE FINISHED */
+    var stateTimedOut: Boolean = false // Whether the testSet was forcefully submitted because no remaining time was left
     var stateTimeFinished: Long? = null // null indicates this testSet hasn't yet been submitted
     var stateAssessed: Boolean = false
     var stateReceivedPoints: Int = 0
@@ -100,11 +101,13 @@ data class TestSetQueried(
         testSetDao!!.insertTestSet(base)
     }
 
-    suspend fun requestSubmit() {
+    suspend fun requestSubmit(timeout: Boolean = false) {
+        base.stateTimedOut = timeout
         base.stateTimeFinished = System.currentTimeMillis()
         save()
     }
     suspend fun retractSubmit() {
+        base.stateTimedOut = false
         base.stateTimeFinished = null
         save()
     }

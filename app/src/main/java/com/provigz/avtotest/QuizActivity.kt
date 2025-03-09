@@ -440,7 +440,7 @@ fun ComposeQuizTimer(
                             if (testSet.base.stateSecondsPassed >= testSet.base.durationMinutes * 60) {
                                 job?.cancel()
                                 CoroutineScope(Dispatchers.IO).launch {
-                                    testSet.requestSubmit()
+                                    testSet.requestSubmit(timeout = true)
                                 }
                             } else {
                                 delay(timeMillis = 1000L)
@@ -585,6 +585,8 @@ fun ComposeQuizActivityPreview() {
     )
 
     // For previewing results screen
+    sampleTestSet.base.stateSecondsPassed = 2100
+    sampleTestSet.base.stateTimedOut = true
     sampleTestSet.base.stateCurrentQuestionIndex = -1
     sampleTestSet.base.stateAssessed = true
     sampleTestSet.base.stateReceivedPoints = 87
@@ -906,11 +908,37 @@ fun ComposeQuizResults(
     Column(
         modifier = Modifier
             .padding(innerPadding)
-            .padding(top = 40.dp)
+            .padding(top = 20.dp)
             .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            val secondsPassed = min(a = testSet.base.stateSecondsPassed, b = testSet.base.durationMinutes * 60)
+            Text(
+                text = String.format(
+                    locale = Locale.US,
+                    format = "Време: %02d:%02d",
+                    secondsPassed / 60, secondsPassed % 60
+                ),
+                textAlign = TextAlign.Center,
+                fontSize = 15.sp,
+                modifier = Modifier.padding(horizontal = 15.dp)
+            )
+            if (testSet.base.stateTimedOut) {
+                Text(
+                    text = "Времето изтече!",
+                    textAlign = TextAlign.Center,
+                    fontSize = 15.sp,
+                    color = Color.Red
+                )
+            }
+        }
         Canvas(
             modifier = Modifier.size(100.dp)
         ) {

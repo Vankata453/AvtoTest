@@ -69,6 +69,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -1103,7 +1104,7 @@ fun ComposeQuizQuestion(
                         videoUrl = "https://avtoizpit.com/api/videos/video$videoID.mp4",
                         thumbnailUrl = "https://avtoizpit.com/api/videos/$videoID/2.png?quality=4",
                         allowPlay = question.state.stateVideoTimesWatched < 3,
-                        onPlay = {
+                        onFinish = {
                             if (!question.state.stateVideoWatched) {
                                 ++question.state.stateVideoTimesWatched
                                 CoroutineScope(Dispatchers.IO).launch {
@@ -1147,17 +1148,23 @@ fun ComposeQuizQuestion(
                             .fillMaxWidth()
                             .fillMaxHeight(fraction = 0.5f),
                         onClick = {
-                            if (question.state.stateVideoTimesWatched < 3) {
-                                showVideoEndWarningDialog = true
-                            } else {
-                                question.state.stateVideoWatched = true
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    question.save()
+                            if (question.state.stateVideoTimesWatched > 0) {
+                                if (question.state.stateVideoTimesWatched < 3) {
+                                    showVideoEndWarningDialog = true
+                                } else {
+                                    question.state.stateVideoWatched = true
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        question.save()
+                                    }
                                 }
                             }
                         },
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            containerColor = lerp(
+                                start = MaterialTheme.colorScheme.surfaceVariant,
+                                stop = Color.Black,
+                                fraction = if (question.state.stateVideoTimesWatched > 0) 0f else 0.2f
+                            )
                         ),
                         elevation = CardDefaults.cardElevation(4.dp)
                     ) {
@@ -1169,6 +1176,11 @@ fun ComposeQuizQuestion(
                                 text = "Решавай въпроса",
                                 textAlign = TextAlign.Center,
                                 fontSize = 16.sp,
+                                color = lerp(
+                                    start = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    stop = Color.Black,
+                                    fraction = if (question.state.stateVideoTimesWatched > 0) 0f else 0.2f
+                                ),
                                 overflow = TextOverflow.Ellipsis,
                                 maxLines = 3,
                                 modifier = Modifier.fillMaxWidth()

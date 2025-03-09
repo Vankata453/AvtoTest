@@ -41,7 +41,8 @@ fun AsyncVideoPlayer(
     thumbnailUrl: String? = null,
     autoPlay: Boolean = false,
     allowPlay: Boolean = true,
-    onPlay: () -> Unit = {}
+    onPlay: () -> Unit = {},
+    onFinish: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val exoPlayer = remember {
@@ -68,6 +69,11 @@ fun AsyncVideoPlayer(
                 if (isPlaying) {
                     wasPlayedOnce = true
                     onPlay()
+                }
+            }
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) {
+                    onFinish()
                 }
             }
         }

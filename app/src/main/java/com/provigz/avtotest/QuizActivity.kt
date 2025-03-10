@@ -118,7 +118,7 @@ class QuizActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AvtoTestTheme {
-                if (!isOnline()) {
+                if (!isOnline(context = this@QuizActivity)) {
                     AlertDialog(
                         onDismissRequest = {},
                         title = {
@@ -128,9 +128,9 @@ class QuizActivity : ComponentActivity() {
                         },
                         text = {
                             Text(
-                                text = "Не може да се осъществи връзка с AvtoIzpit!\n" +
+                                text = "Не може да се осъществи връзка с интернет!\n" +
                                         "\n" +
-                                        "Уверете се, че сте свързани към интернет!"
+                                        "Уверете се, че сте свързани!"
                             )
                         },
                         confirmButton = {

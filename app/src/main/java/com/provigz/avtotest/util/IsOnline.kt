@@ -1,12 +1,13 @@
 package com.provigz.avtotest.util
 
-import java.net.InetAddress
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import androidx.core.content.ContextCompat.getSystemService
 
-fun isOnline(): Boolean {
-    return try {
-        val address = InetAddress.getByName("https://avtoizpit.com")
-        address.isReachable(5000)
-    } catch (e: Exception) {
-        false
-    }
+fun isOnline(context: Context): Boolean {
+    val connectivityManager = getSystemService(context, ConnectivityManager::class.java) ?: return false
+    val currentNetwork = connectivityManager.activeNetwork ?: return false
+    val networkCapabilities = connectivityManager.getNetworkCapabilities(currentNetwork) ?: return false
+    return networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
 }

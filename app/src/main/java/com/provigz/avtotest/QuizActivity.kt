@@ -617,7 +617,7 @@ fun ComposeQuizActivityPreview() {
     // For previewing results screen
     sampleTestSet.base.stateSecondsPassed = 2100
     sampleTestSet.base.stateTimedOut = true
-    sampleTestSet.base.stateCurrentQuestionIndex = -1
+    sampleTestSet.base.stateCurrentQuestionIndex = 0
     sampleTestSet.base.stateAssessed = true
     sampleTestSet.base.stateReceivedPoints = 87
     sampleTestSet.base.stateTotalPoints = 97
@@ -649,28 +649,32 @@ fun ComposeQuizActivity(
             coroutineScope,
             testSet
         ) { innerPadding ->
-            if (testSet.questions.isNotEmpty()) {
-                if (testSet.base.stateCurrentQuestionIndex < 0) {
-                    ComposeQuizResults(
-                        testSet,
-                        innerPadding
-                    )
-                } else {
-                    val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (testSet.questions.isNotEmpty()) {
+                    if (testSet.base.stateCurrentQuestionIndex < 0) {
+                        ComposeQuizResults(
+                            testSet,
+                            innerPadding
+                        )
+                    } else {
+                        val question = testSet.questions[testSet.base.stateCurrentQuestionIndex]
 
-                    val questionID = question.base.id
-                    val questionUpdateCount by question.updateCount.collectAsState() // Used to trigger recompositions
-                    Log.i(
-                        "QuizActivity",
-                        "Question $questionID was updated. Individual updates: $questionUpdateCount"
-                    )
+                        val questionID = question.base.id
+                        val questionUpdateCount by question.updateCount.collectAsState() // Used to trigger recompositions
+                        Log.i(
+                            "QuizActivity",
+                            "Question $questionID was updated. Individual updates: $questionUpdateCount"
+                        )
 
-                    ComposeQuizQuestion(
-                        innerPadding,
-                        question,
-                        interactive = testSet.base.stateTimeFinished == null,
-                        showResults = testSet.base.stateAssessed
-                    )
+                        ComposeQuizQuestion(
+                            innerPadding,
+                            question,
+                            interactive = testSet.base.stateTimeFinished == null,
+                            showResults = testSet.base.stateAssessed
+                        )
+                    }
                 }
             }
         }
@@ -1056,7 +1060,6 @@ fun ComposeQuizResults(
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
                     overflow = TextOverflow.Ellipsis,
-                    maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1083,7 +1086,6 @@ fun ComposeQuizResults(
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
                     overflow = TextOverflow.Ellipsis,
-                    maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1123,8 +1125,7 @@ fun ComposeQuizQuestion(
                 fontSize = 18.sp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp)
-                    .padding(end = 10.dp)
+                    .padding(10.dp)
             )
             if (question.base.videoID != null) {
                 val videoID = question.base.videoID
@@ -1211,7 +1212,6 @@ fun ComposeQuizQuestion(
                                     fraction = if (question.state.stateVideoTimesWatched > 0) 0f else 0.2f
                                 ),
                                 overflow = TextOverflow.Ellipsis,
-                                maxLines = 3,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -1227,13 +1227,15 @@ fun ComposeQuizQuestion(
                     )
                 }
             } else {
-                items(count = min(a = question.answers.size, b = 4)) { index ->
+                val answerCount = min(a = question.answers.size, b = 4)
+                items(count = answerCount) { index ->
                     ComposeQuestionAnswerCard(
                         answer = question.answers[index],
                         index,
                         question,
                         interactive,
-                        showResults
+                        showResults,
+                        modifier = Modifier.fillMaxHeight(fraction = 1f / answerCount)
                     )
                 }
             }
@@ -1505,10 +1507,11 @@ fun ComposeQuestionAnswerCard(
     index: Int,
     question: QuestionQueried,
     interactive: Boolean,
-    showResults: Boolean
+    showResults: Boolean,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         onClick = {
             if (interactive) {
                 if (index in question.state.stateSelectedAnswerIndexes) {
@@ -1544,10 +1547,9 @@ fun ComposeQuestionAnswerCard(
                     )
                 } else if (!answer.text.isNullOrEmpty()) {
                     Text(
-                        text = answer.text,
+                        text = answer.text.trim(),
                         fontSize = 16.sp,
-                        overflow = TextOverflow.Ellipsis,
-                        maxLines = 3
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

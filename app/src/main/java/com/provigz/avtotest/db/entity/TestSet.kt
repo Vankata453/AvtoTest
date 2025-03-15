@@ -32,7 +32,7 @@ data class TestSet(
 
     constructor(model: com.provigz.avtotest.model.TestSet) : this(
         id = model.id,
-        categoryID = model.subCategory.id,
+        categoryID = model.subCategory.id.toInt(),
         categoryName = model.subCategory.name,
         durationMinutes = model.subCategory.durationMinutes,
         questionIDs = emptyList()

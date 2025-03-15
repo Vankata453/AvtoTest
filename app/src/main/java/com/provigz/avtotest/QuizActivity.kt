@@ -35,7 +35,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -92,10 +91,12 @@ import com.provigz.avtotest.db.entity.TestSet
 import com.provigz.avtotest.db.entity.TestSetQueried
 import com.provigz.avtotest.model.TestSetAssessment
 import com.provigz.avtotest.model.TestSetAssessmentRequest
+import com.provigz.avtotest.model.TestSetCategory
 import com.provigz.avtotest.model.TestSetRequest
 import com.provigz.avtotest.model.TestSetSubCategory
 import com.provigz.avtotest.ui.theme.AvtoTestTheme
 import com.provigz.avtotest.util.AsyncVideoPlayer
+import com.provigz.avtotest.util.ComposeLoadingPrompt
 import com.provigz.avtotest.util.isOnline
 import com.provigz.avtotest.viewmodel.NetworkRequestViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -153,14 +154,14 @@ class QuizActivity : ComponentActivity() {
                 val (hasLoadedTestSetID, startedTestSetID) = testSetIDState
 
                 if (!hasLoadedTestSetID) {
-                    ComposeLoadingPrompt()
+                    ComposeLoadingPrompt(text = "Зареждане на листовка")
                 } else if (startedTestSetID.isNullOrEmpty()) {
                     val viewModel = remember {
                         NetworkRequestViewModel(
                             endpoint = "test-sets",
                             method = "POST",
                             request = TestSetRequest(
-                                subCategoryID = 3,
+                                subCategoryID = TestSetCategory.fromInt(intent.getIntExtra("categoryID", TestSetCategory.B.toInt()))!!,
                                 learningPlanID = 227,
                                 languageID = 1
                             ),
@@ -199,7 +200,7 @@ class QuizActivity : ComponentActivity() {
                                 testSet
                             )
                         } else {
-                            ComposeLoadingPrompt()
+                            ComposeLoadingPrompt(text = "Зареждане на листовка")
                         }
                     } else if (finished) {
                         AlertDialog(
@@ -243,7 +244,7 @@ class QuizActivity : ComponentActivity() {
                             }
                         )
                     } else {
-                        ComposeLoadingPrompt()
+                        ComposeLoadingPrompt(text = "Зареждане на листовка")
                     }
                 } else {
                     val testSetState by produceState<Pair<Boolean, TestSet?>>(false to null) {
@@ -291,7 +292,7 @@ class QuizActivity : ComponentActivity() {
                             )
                         }
                     } else {
-                        ComposeLoadingPrompt()
+                        ComposeLoadingPrompt(text = "Зареждане на листовка")
                     }
                 }
             }
@@ -299,27 +300,7 @@ class QuizActivity : ComponentActivity() {
     }
 }
 
-@Composable
-fun ComposeLoadingPrompt(
-    text: String = "Зареждане на листовка..."
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(30.dp)
-        )
-        Spacer(
-            modifier = Modifier.width(16.dp)
-        )
-        Text(
-            text,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
-}
+
 
 @Composable
 fun ComposeQueryQuizActivity(
@@ -375,7 +356,7 @@ fun ComposeQueryQuizActivity(
                     )
                 } else {
                     ComposeLoadingPrompt(
-                        text = "Зареждане на резултат..."
+                        text = "Зареждане на резултат"
                     )
                 }
             } else if (finished) {
@@ -433,7 +414,7 @@ fun ComposeQueryQuizActivity(
                 )
             } else {
                 ComposeLoadingPrompt(
-                    text = "Зареждане на резултат..."
+                    text = "Зареждане на резултат"
                 )
             }
         } else {
@@ -442,7 +423,7 @@ fun ComposeQueryQuizActivity(
             )
         }
     } else {
-        ComposeLoadingPrompt()
+        ComposeLoadingPrompt(text = "Зареждане на листовка")
     }
 }
 
@@ -510,7 +491,7 @@ fun ComposeQuizActivityPreview() {
             com.provigz.avtotest.model.TestSet(
                 id = 216782909,
                 subCategory = TestSetSubCategory(
-                    id = 3,
+                    id = TestSetCategory.B,
                     categoryID = 1,
                     name = "B",
                     durationMinutes = 40

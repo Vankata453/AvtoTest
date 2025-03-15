@@ -16,6 +16,8 @@ data class TestSet(
     val durationMinutes: Int,
     var questionIDs: List<Int>,
 ) {
+    var timeStarted: Long = System.currentTimeMillis()
+
     /* STATE */
     var stateCurrentQuestionIndex: Int = 0 // Negative indicates results page
     var stateSecondsPassed: Int = 0

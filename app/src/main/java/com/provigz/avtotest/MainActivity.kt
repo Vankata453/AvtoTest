@@ -1,6 +1,7 @@
 package com.provigz.avtotest
 
 import android.content.Intent
+import android.icu.text.SimpleDateFormat
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -395,6 +396,7 @@ fun ComposeMainScaffold(
                             text = """
                                 #${startedTestSet.id}
                                 Категория: ${TestSetCategory.fromInt(startedTestSet.categoryID)}
+                                Започната на: ${SimpleDateFormat("DD/MM/yyyy, HH:MM", Locale.US).format(startedTestSet.timeStarted)}
                                 Изминато време: ${String.format(
                                     locale = Locale.US,
                                     format = "%02d:%02d",

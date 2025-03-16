@@ -1,7 +1,9 @@
 package com.provigz.avtotest.network
 
+import androidx.compose.runtime.MutableState
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -11,7 +13,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import java.io.IOException
 
-private val gson = Gson()
+val gson = Gson()
 
 data class HTTPErrorResponseBody(
     @SerializedName("error") val error: String?,
@@ -25,18 +27,24 @@ private val okHttpClient = OkHttpClient.Builder()
     .addInterceptor(loggingInterceptor)
     .build()
 
-suspend fun <T> newRequest(
+suspend fun newRequest(
     url: String,
     method: String,
-    request: Any,
-    responseClass: Class<T>
-): T {
+    request: Any?
+): String {
     return withContext(Dispatchers.IO) {
-        val requestBody = gson.toJson(request).toRequestBody("application/json".toMediaType())
-        val req = Request.Builder()
-            .url(url)
-            .method(method, requestBody)
-            .build()
+        val req: Request
+        if (request != null) {
+            val requestBody = gson.toJson(request).toRequestBody("application/json".toMediaType())
+            req = Request.Builder()
+                .url(url)
+                .method(method, requestBody)
+                .build()
+        } else {
+            req = Request.Builder()
+                .url(url)
+                .build()
+        }
 
         val response = okHttpClient.newCall(req).execute()
         val responseBody = response.body?.string()
@@ -54,7 +62,42 @@ suspend fun <T> newRequest(
         }
 
         responseBody ?: throw IOException("Empty response body")
+        responseBody
+    }
+}
 
-        gson.fromJson(responseBody, responseClass)
+suspend inline fun <reified T> newRequest(
+    url: String,
+    method: String,
+    request: Any?,
+    response: MutableState<T?>,
+    finished: MutableState<Boolean>,
+    error: MutableState<String?>
+) {
+    try {
+        val responseLocal = gson.fromJson(newRequest(url, method, request), T::class.java)
+        response.value = responseLocal
+        finished.value = true
+    } catch (e: Exception) {
+        e.printStackTrace()
+        error.value = e.message
+    }
+}
+
+suspend inline fun <reified T> newRequestArray(
+    url: String,
+    method: String,
+    request: Any?,
+    response: MutableState<List<T>?>,
+    finished: MutableState<Boolean>,
+    error: MutableState<String?>
+) {
+    try {
+        val responseLocal = gson.fromJson<List<T>>(newRequest(url, method, request), object : TypeToken<List<T>>() {}.type)
+        response.value = responseLocal
+        finished.value = true
+    } catch (e: Exception) {
+        e.printStackTrace()
+        error.value = e.message
     }
 }

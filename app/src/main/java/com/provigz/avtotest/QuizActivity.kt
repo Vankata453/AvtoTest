@@ -94,11 +94,11 @@ import com.provigz.avtotest.model.TestSetAssessmentRequest
 import com.provigz.avtotest.model.TestSetCategory
 import com.provigz.avtotest.model.TestSetRequest
 import com.provigz.avtotest.model.TestSetSubCategory
+import com.provigz.avtotest.network.newRequest
 import com.provigz.avtotest.ui.theme.AvtoTestTheme
 import com.provigz.avtotest.util.AsyncVideoPlayer
 import com.provigz.avtotest.util.ComposeLoadingPrompt
 import com.provigz.avtotest.util.isOnline
-import com.provigz.avtotest.viewmodel.NetworkRequestViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -156,33 +156,29 @@ class QuizActivity : ComponentActivity() {
                 if (!hasLoadedTestSetID) {
                     ComposeLoadingPrompt(text = "Зареждане на листовка")
                 } else if (startedTestSetID.isNullOrEmpty()) {
-                    val viewModel = remember {
-                        NetworkRequestViewModel(
-                            endpoint = "test-sets",
+                    val response = remember { mutableStateOf<com.provigz.avtotest.model.TestSet?>(null) }
+                    val finished = remember { mutableStateOf(false) }
+                    val error = remember { mutableStateOf<String?>(null) }
+                    LaunchedEffect(Unit) {
+                        newRequest(
+                            url = "https://avtoizpit.com/api/test-sets",
                             method = "POST",
                             request = TestSetRequest(
                                 subCategoryID = TestSetCategory.fromInt(intent.getIntExtra("categoryID", TestSetCategory.B.toInt()))!!,
                                 learningPlanID = 227,
                                 languageID = 1
                             ),
-                            responseClass = com.provigz.avtotest.model.TestSet::class.java
+                            response, finished, error
                         )
                     }
-                    LaunchedEffect(Unit) {
-                        viewModel.fetch()
-                    }
 
-                    val response by viewModel.responseState.collectAsState()
-                    val finished by viewModel.finishedState.collectAsState()
-                    val error by viewModel.errorState.collectAsState()
-
-                    if (response != null) {
-                        val testSet = remember { TestSet(response!!) }
+                    if (response.value != null) {
+                        val testSet = remember { TestSet(response.value!!) }
                         var testSetReady by remember { mutableStateOf(false) }
                         LaunchedEffect(Unit) {
                             testSet.insertQuestions(
                                 testSetDao,
-                                questions = response!!.questions
+                                questions = response.value!!.questions
                             )
                             testSetDao.insertTestSet(testSet)
                             testSetDao.setProperty(
@@ -202,10 +198,15 @@ class QuizActivity : ComponentActivity() {
                         } else {
                             ComposeLoadingPrompt(text = "Зареждане на листовка")
                         }
-                    } else if (finished) {
+                    } else if (finished.value) {
                         AlertDialog(
                             onDismissRequest = {},
                             title = {
+                                Text(
+                                    text = "Грешка"
+                                )
+                            },
+                            text = {
                                 Text(
                                     text = "Листовката не може да бъде заредена!"
                                 )
@@ -220,17 +221,17 @@ class QuizActivity : ComponentActivity() {
                                 }
                             }
                         )
-                    } else if (error != null) {
+                    } else if (error.value != null) {
                         AlertDialog(
                             onDismissRequest = {},
                             title = {
                                 Text(
-                                    text = "Грешка при зареждането на листовка!"
+                                    text = "Грешка"
                                 )
                             },
                             text = {
                                 Text(
-                                    text = error!!
+                                    text = "Грешка при зареждането на листовка:\n\n${error.value!!}"
                                 )
                             },
                             confirmButton = {
@@ -324,28 +325,24 @@ fun ComposeQueryQuizActivity(
         if (testSetQueried!!.base.stateTimeFinished != null && !testSetQueried!!.base.stateAssessed) {
             /* Request assessment and await it */
             val testSetID = testSet!!.id
-            val viewModel = remember {
-                NetworkRequestViewModel(
-                    endpoint = "test-sets/$testSetID/assessment",
+            val response = remember { mutableStateOf<TestSetAssessment?>(null) }
+            val finished = remember { mutableStateOf(false) }
+            val error = remember { mutableStateOf<String?>(null) }
+            LaunchedEffect(Unit) {
+                newRequest(
+                    url = "https://avtoizpit.com/api/test-sets/$testSetID/assessment",
                     method = "POST",
                     request = TestSetAssessmentRequest(
                         testSetQueried!!
                     ),
-                    responseClass = TestSetAssessment::class.java
+                    response, finished, error
                 )
             }
-            LaunchedEffect(Unit) {
-                viewModel.fetch()
-            }
 
-            val response by viewModel.responseState.collectAsState()
-            val finished by viewModel.finishedState.collectAsState()
-            val error by viewModel.errorState.collectAsState()
-
-            if (response != null) {
+            if (response.value != null) {
                 var testSetReady by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) {
-                    testSetQueried!!.setAssessment(response!!)
+                    testSetQueried!!.setAssessment(response.value!!)
                     testSetDao.deleteProperty(name = "startedTestSet")
                     testSetReady = true
                 }
@@ -359,7 +356,7 @@ fun ComposeQueryQuizActivity(
                         text = "Зареждане на резултат"
                     )
                 }
-            } else if (finished) {
+            } else if (finished.value) {
                 AlertDialog(
                     onDismissRequest = {
                         CoroutineScope(Dispatchers.IO).launch {
@@ -367,6 +364,11 @@ fun ComposeQueryQuizActivity(
                         }
                     },
                     title = {
+                        Text(
+                            text = "Грешка"
+                        )
+                    },
+                    text = {
                         Text(
                             text = "Резултат на листовката не може да бъде зареден!"
                         )
@@ -383,7 +385,7 @@ fun ComposeQueryQuizActivity(
                         }
                     }
                 )
-            } else if (error != null) {
+            } else if (error.value != null) {
                 AlertDialog(
                     onDismissRequest = {
                         CoroutineScope(Dispatchers.IO).launch {
@@ -392,12 +394,12 @@ fun ComposeQueryQuizActivity(
                     },
                     title = {
                         Text(
-                            text = "Грешка при зареждането на резултат на листовката!"
+                            text = "Грешка"
                         )
                     },
                     text = {
                         Text(
-                            text = error!!
+                            text = "Грешка при зареждане на резултат на листовката:\n\n${error.value!!}"
                         )
                     },
                     confirmButton = {

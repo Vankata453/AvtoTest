@@ -192,17 +192,27 @@ fun ComposeMainScaffold(
         ) {
             val selectedCategory = remember { mutableStateOf(selectedCategoryInitial) }
 
-            Text(
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(25.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .fillMaxHeight(fraction = 0.3f),
-                text =
-                """
-                    This is an example of a scaffold. It uses the Scaffold composable's parameters to create a screen with a simple top app bar, bottom app bar, and floating action button.
-    
-                    It also contains some basic inner content, such as this text.
-                """.trimIndent(),
-            )
+                    .fillMaxWidth()
+                    .fillMaxHeight(fraction = 0.2f)
+                    .padding(vertical = 20.dp)
+            ) {
+                ComposeMenuItem(
+                    icon = R.drawable.test,
+                    text = "Листовки"
+                )
+                ComposeMenuItem(
+                    icon = R.drawable.questions,
+                    text = "Въпроси"
+                )
+                ComposeMenuItem(
+                    icon = R.drawable.claim_result,
+                    text = "Провери резултат"
+                )
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -513,6 +523,34 @@ fun ComposeMainScaffold(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ComposeMenuItem(
+    icon: Int,
+    text: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxHeight()
+            .clickable {
+
+            }
+    ) {
+        Image(
+            painter = painterResource(id = icon),
+            contentDescription = text,
+            modifier = Modifier.fillMaxHeight(fraction = 0.6f)
+        )
+        Text(
+            text,
+            textAlign = TextAlign.Center,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

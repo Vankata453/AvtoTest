@@ -1011,13 +1011,13 @@ fun ComposeQuizResults(
                 .padding(vertical = 30.dp)
         )
         Text(
-            text = "${testSet.base.stateCorrectQuestionsCount} верни въпроса",
+            text = "${testSet.base.stateCorrectQuestionsCount} ${if (testSet.base.stateCorrectQuestionsCount == 1) "верен въпрос" else "верни въпроса"}",
             textAlign = TextAlign.Center,
             fontSize = 20.sp,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
-            text = "${testSet.base.stateIncorrectQuestionsCount} грешни въпроса",
+            text = "${testSet.base.stateIncorrectQuestionsCount} ${if (testSet.base.stateIncorrectQuestionsCount == 1) "грешен въпрос" else "грешни въпроса"}",
             textAlign = TextAlign.Center,
             fontSize = 20.sp,
             modifier = Modifier.fillMaxWidth()

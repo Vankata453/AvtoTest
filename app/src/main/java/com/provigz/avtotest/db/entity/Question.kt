@@ -15,9 +15,10 @@ data class Question(
     val pictureID: String?,
     val videoID: Int?,
     val points: Int,
-    val correctAnswers: Int,
-    var answerIDs: List<Int>
+    val correctAnswers: Int
 ) {
+    var answerIDs: List<Int> = emptyList()
+
     constructor(model: com.provigz.avtotest.model.Question) : this(
         id = model.id,
         text = model.text,
@@ -25,8 +26,7 @@ data class Question(
         pictureID = model.pictureID,
         videoID = model.videoID,
         points = model.points,
-        correctAnswers = model.correctAnswers,
-        answerIDs = emptyList()
+        correctAnswers = model.correctAnswers
     )
 
     suspend fun insertAnswers(
@@ -46,15 +46,20 @@ data class Question(
 
     suspend fun createState(
         testSetDao: TestSetDao,
-        testSetID: Int
+        testSetID: Int,
+        answers: Array<com.provigz.avtotest.model.Answer>
     ) {
-        testSetDao.insertQuestionState(
-            QuestionState(
-                testSetID = testSetID,
-                questionID = id,
-                answerIDs = answerIDs
-            )
+        val state = QuestionState(
+            testSetID = testSetID,
+            questionID = id,
+            answerIDs = answerIDs
         )
+        answers.forEachIndexed { answerIndex, answerAssessed ->
+            if (answerAssessed.checked == true) {
+                state.stateSelectedAnswerIndexes += answerIndex
+            }
+        }
+        testSetDao.insertQuestionState(state)
     }
 
     suspend fun query(
@@ -124,7 +129,7 @@ data class QuestionQueried(
     }
 
     fun isCorrect(): Boolean {
-        var correctAnswerIndexes = emptyList<Int>()
+        val correctAnswerIndexes = emptyList<Int>().toMutableList()
         answers.forEachIndexed { answerIndex, answer ->
             if (answer.correct == true) {
                 correctAnswerIndexes += answerIndex

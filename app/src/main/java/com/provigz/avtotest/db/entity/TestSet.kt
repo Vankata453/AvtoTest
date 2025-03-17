@@ -14,8 +14,9 @@ data class TestSet(
     val categoryID: Int,
     val categoryName: String,
     val durationMinutes: Int,
-    var questionIDs: List<Int>,
+    val voucherCode: String? = null
 ) {
+    var questionIDs: List<Int> = emptyList()
     var timeStarted: Long = System.currentTimeMillis()
 
     /* STATE */
@@ -36,9 +37,21 @@ data class TestSet(
         id = model.id,
         categoryID = model.subCategory.id.toInt(),
         categoryName = model.subCategory.name,
-        durationMinutes = model.subCategory.durationMinutes,
-        questionIDs = emptyList()
+        durationMinutes = model.subCategory.durationMinutes
     )
+    constructor(
+        model: com.provigz.avtotest.model.TestSetAssessmentFull,
+        voucherCode: String? = null
+    ) : this(
+        id = model.testSet.id,
+        categoryID = model.testSet.subCategory.id.toInt(),
+        categoryName = model.testSet.subCategory.name,
+        durationMinutes = model.testSet.subCategory.durationMinutes,
+        voucherCode
+    ) {
+        setAssessmentResult(model.result)
+        stateCurrentQuestionIndex = -1
+    }
 
     fun setAssessmentResult(assessmentResult: TestSetAssessmentResult) {
         stateAssessed = true
@@ -61,7 +74,8 @@ data class TestSet(
             )
             question.createState(
                 testSetDao,
-                testSetID = id
+                testSetID = id,
+                answers = questionModel.answers
             )
 
             testSetDao.insertQuestion(question)
@@ -82,6 +96,10 @@ data class TestSet(
             )
         }
         return queried
+    }
+
+    fun isFinished(): Boolean {
+        return stateTimeFinished != null || stateAssessed
     }
 }
 

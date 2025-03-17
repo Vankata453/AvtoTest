@@ -9,10 +9,9 @@ data class Answer(
     val questionID: Int,
 
     val text: String?,
-    val pictureID: String?
-) {
+    val pictureID: String?,
     var correct: Boolean? = null
-
+) {
     constructor(
         questionID: Int,
         model: com.provigz.avtotest.model.Answer
@@ -20,6 +19,7 @@ data class Answer(
         id = model.id,
         questionID,
         text = model.text,
-        pictureID = model.pictureID
+        pictureID = model.pictureID,
+        correct = model.correct
     )
 }

@@ -31,6 +31,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -58,8 +60,11 @@ import androidx.compose.ui.unit.sp
 import com.provigz.avtotest.db.TestSetDatabase
 import com.provigz.avtotest.db.entity.Property
 import com.provigz.avtotest.db.entity.TestSet
+import com.provigz.avtotest.model.TestSetAssessmentFull
 import com.provigz.avtotest.model.TestSetCategory
+import com.provigz.avtotest.network.newRequestArray
 import com.provigz.avtotest.ui.theme.AvtoTestTheme
+import com.provigz.avtotest.util.ComposeLoadingDialog
 import com.provigz.avtotest.util.ComposeLoadingPrompt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -140,6 +145,16 @@ class MainActivity : ComponentActivity() {
                                             recreate()
                                         }
                                     }
+                                },
+                                checkVoucherFree = { voucherCode ->
+                                    testSetDao.countTestSetsByVoucherCode(voucherCode) <= 0
+                                },
+                                saveVoucherTestSet = { testSet, testSetModel ->
+                                    testSet.insertQuestions(
+                                        testSetDao,
+                                        questions = testSetModel.questions
+                                    )
+                                    testSetDao.insertTestSet(testSet)
                                 }
                             )
                         }
@@ -163,7 +178,9 @@ fun ComposeMainScaffold(
     selectedCategoryInitial: TestSetCategory = TestSetCategory.B,
     onCategorySelect: (TestSetCategory) -> Unit = {},
     startedTestSet: TestSet? = null,
-    onTestSetDelete: () -> Unit = {}
+    onTestSetDelete: () -> Unit = {},
+    checkVoucherFree: suspend (String) -> Boolean = { true },
+    saveVoucherTestSet: suspend (TestSet, com.provigz.avtotest.model.TestSet) -> Unit = { _, _ -> }
 ) {
     val active = startedTestSet == null
     
@@ -200,17 +217,128 @@ fun ComposeMainScaffold(
                     .fillMaxHeight(fraction = 0.2f)
                     .padding(vertical = 20.dp)
             ) {
+                var showCheckResultDialog by remember { mutableStateOf(false) }
+                var showVoucherCodeIncorrectDialog by remember { mutableStateOf(false) }
+                var voucherCode by remember { mutableStateOf("") }
+                val checkVoucherCode = remember { mutableStateOf<String?>(null) }
+
                 ComposeMenuItem(
                     icon = R.drawable.test,
-                    text = "Листовки"
+                    text = "Листовки",
+                    onPress = {
+
+                    },
+                    active
                 )
                 ComposeMenuItem(
                     icon = R.drawable.questions,
-                    text = "Въпроси"
+                    text = "Въпроси",
+                    onPress = {
+
+                    },
+                    active
                 )
                 ComposeMenuItem(
                     icon = R.drawable.claim_result,
-                    text = "Провери резултат"
+                    text = "Провери резултат",
+                    onPress = {
+                        showCheckResultDialog = true
+                    },
+                    active = true
+                )
+
+                if (showCheckResultDialog) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            showCheckResultDialog = false
+                        },
+                        title = {
+                            Text(text = "Проверка на резултат")
+                        },
+                        text = {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Top),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Въведете 12-цифрения код, намиращ се под баркода на вашия ваучер."
+                                )
+                                Image(
+                                    painter = painterResource(id = R.drawable.voucher_code),
+                                    contentDescription = "Код под баркода на ваучера"
+                                )
+                                OutlinedTextField(
+                                    value = voucherCode,
+                                    onValueChange = {
+                                        voucherCode = it
+                                    },
+                                    label = {
+                                        Text(text = "Въведете код")
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    if (voucherCode.length == 12) { // TODO: Validate whether numbers were written
+                                        showCheckResultDialog = false
+                                        checkVoucherCode.value = voucherCode
+                                        voucherCode = ""
+                                    } else {
+                                        showVoucherCodeIncorrectDialog = true
+                                    }
+                                }
+                            ) {
+                                Text(text = "Провери")
+                            }
+                        },
+                        dismissButton = {
+                            Button(
+                                onClick = {
+                                    showCheckResultDialog = false
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondary
+                                )
+                            ) {
+                                Text(text = "Отказ")
+                            }
+                        }
+                    )
+                }
+                if (showVoucherCodeIncorrectDialog) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            showVoucherCodeIncorrectDialog = false
+                        },
+                        title = {
+                            Text(
+                                text = "Невалиден код на ваучер"
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = "Необходим е валиден 12-цифрен код.\n\nМоля, опитайте отново."
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    showVoucherCodeIncorrectDialog = false
+                                }
+                            ) {
+                                Text(text = "ОК")
+                            }
+                        }
+                    )
+                }
+                ComposeCheckResult(
+                    checkVoucherCode,
+                    checkVoucherFree,
+                    saveVoucherTestSet
                 )
             }
             Box(
@@ -406,7 +534,7 @@ fun ComposeMainScaffold(
                             text = """
                                 #${startedTestSet.id}
                                 Категория: ${TestSetCategory.fromInt(startedTestSet.categoryID)}
-                                Започната на: ${SimpleDateFormat("DD/MM/yyyy, HH:MM", Locale.US).format(startedTestSet.timeStarted)}
+                                Започната на: ${SimpleDateFormat("dd.MM.yyyy г. HH:MM", Locale.US).format(startedTestSet.timeStarted)}
                                 Изминато време: ${String.format(
                                     locale = Locale.US,
                                     format = "%02d:%02d",
@@ -529,27 +657,31 @@ fun ComposeMainScaffold(
 @Composable
 fun ComposeMenuItem(
     icon: Int,
-    text: String
+    text: String,
+    onPress: () -> Unit,
+    active: Boolean
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
             .fillMaxHeight()
-            .clickable {
-
-            }
+            .clickable(
+                enabled = active,
+                onClick = onPress
+            )
     ) {
         Image(
             painter = painterResource(id = icon),
             contentDescription = text,
-            modifier = Modifier.fillMaxHeight(fraction = 0.6f)
+            modifier = Modifier.fillMaxHeight(fraction = 0.6f),
+            colorFilter = if (active) null else ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
         )
         Text(
             text,
             textAlign = TextAlign.Center,
             fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = if (active) FontWeight.Bold else null
         )
     }
 }
@@ -598,5 +730,162 @@ fun ComposeCategoryIcon(
             textAlign = TextAlign.Center,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
         )
+    }
+}
+
+@Composable
+fun ComposeCheckResult(
+    checkVoucherCode: MutableState<String?>,
+    checkVoucherFree: suspend (String) -> Boolean,
+    saveVoucherTestSet: suspend (TestSet, com.provigz.avtotest.model.TestSet) -> Unit
+) {
+    if (checkVoucherCode.value == null) {
+        return
+    }
+
+    val testSetVoucherFreeState by produceState(false to false) {
+        val result = checkVoucherFree(checkVoucherCode.value!!)
+        value = true to result
+    }
+    val (hasLoadedVoucherFree, testSetVoucherFree) = testSetVoucherFreeState
+
+    if (!hasLoadedVoucherFree) {
+        ComposeLoadingDialog(text = "Проверка")
+    } else {
+        if (!testSetVoucherFree) {
+            AlertDialog(
+                onDismissRequest = {
+                    checkVoucherCode.value = null
+                },
+                title = {
+                    Text(
+                        text = "Запазена листовка"
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Листовка от ваучер ${checkVoucherCode.value} вече е запазена."
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            checkVoucherCode.value = null
+                        }
+                    ) {
+                        Text(text = "OK")
+                    }
+                }
+            )
+            return
+        }
+
+        val response = remember { mutableStateOf<List<TestSetAssessmentFull>?>(null) }
+        val finished = remember { mutableStateOf(false) }
+        val error = remember { mutableStateOf<String?>(null) }
+        LaunchedEffect(Unit) {
+            newRequestArray(
+                url = "https://avtoizpit.com/api/vouchers/${checkVoucherCode.value}/test-set",
+                method = "GET",
+                request = null,
+                response, finished, error
+            )
+        }
+
+        if (response.value != null) {
+            if (response.value!!.isNotEmpty()) {
+                val assessment = response.value!![0]
+                val testSet = remember {
+                    TestSet(
+                        model = assessment,
+                        voucherCode = checkVoucherCode.value
+                    )
+                }
+                var testSetReady by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    saveVoucherTestSet(testSet, assessment.testSet)
+                    testSetReady = true
+                }
+
+                if (testSetReady) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            checkVoucherCode.value = null
+                        },
+                        title = {
+                            Text(
+                                text = "Запазена листовка"
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = "Листовка #${testSet.id} от ваучер ${checkVoucherCode.value} успешно запазена!"
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    checkVoucherCode.value = null
+                                }
+                            ) {
+                                Text(text = "OK")
+                            }
+                        }
+                    )
+                } else {
+                    ComposeLoadingDialog(text = "Запазване на листовка")
+                }
+            } else {
+                error.value = "Невалиден отговор от сървъра!"
+            }
+        } else if (finished.value) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = {
+                    Text(
+                        text = "Грешка"
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Листовката от ваучер ${checkVoucherCode.value} не може да бъде заредена!"
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            checkVoucherCode.value = null
+                        }
+                    ) {
+                        Text(text = "OK")
+                    }
+                }
+            )
+        } else if (error.value != null) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = {
+                    Text(
+                        text = "Грешка"
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Грешка при зареждане на листовка от ваучер ${checkVoucherCode.value}:\n\n${error.value!!}"
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            checkVoucherCode.value = null
+                        }
+                    ) {
+                        Text(text = "OK")
+                    }
+                }
+            )
+        } else {
+            ComposeLoadingDialog(text = "Зареждане на листовка")
+        }
     }
 }

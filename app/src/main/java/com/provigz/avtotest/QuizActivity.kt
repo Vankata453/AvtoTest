@@ -438,7 +438,7 @@ fun ComposeQuizTimer(
 
     var job by remember { mutableStateOf<Job?>(null) }
 
-    if (testSet.base.stateTimeFinished != null) {
+    if (testSet.base.isFinished()) {
         job?.cancel()
         return
     }
@@ -654,7 +654,7 @@ fun ComposeQuizActivity(
                         ComposeQuizQuestion(
                             innerPadding,
                             question,
-                            interactive = testSet.base.stateTimeFinished == null,
+                            interactive = !testSet.base.isFinished(),
                             showResults = testSet.base.stateAssessed
                         )
                     }
@@ -713,7 +713,7 @@ fun ComposeQuizScaffold(
                         }
                     },
                     actions = {
-                        if (testSet.base.stateTimeFinished == null) {
+                        if (!testSet.base.isFinished()) {
                             IconButton(onClick = {
                                 showSubmitWarningDialog = true
                             }) {
@@ -938,11 +938,16 @@ fun ComposeQuizResults(
         ) {
             val secondsPassed = min(a = testSet.base.stateSecondsPassed, b = testSet.base.durationMinutes * 60)
             Text(
-                text = String.format(
-                    locale = Locale.US,
-                    format = "Време: %02d:%02d",
-                    secondsPassed / 60, secondsPassed % 60
-                ),
+                text =
+                if (testSet.base.voucherCode.isNullOrEmpty()) {
+                    String.format(
+                        locale = Locale.US,
+                        format = "Време: %02d:%02d",
+                        secondsPassed / 60, secondsPassed % 60
+                    )
+                } else {
+                    "Ваучер: ${testSet.base.voucherCode}"
+                },
                 textAlign = TextAlign.Center,
                 fontSize = 15.sp,
                 modifier = Modifier.padding(horizontal = 15.dp)

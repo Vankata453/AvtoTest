@@ -67,6 +67,9 @@ interface TestSetDao {
         }
     }
 
+    @Query("SELECT COUNT(*) FROM testSet WHERE voucherCode = :voucherCode")
+    suspend fun countTestSetsByVoucherCode(voucherCode: String): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTestSet(testSet: TestSet)
     @Insert(onConflict = OnConflictStrategy.IGNORE)

@@ -260,7 +260,7 @@ fun ComposeMainScaffold(
                         confirmButton = {
                             Button(
                                 onClick = {
-                                    if (voucherCode.length == 12) { // TODO: Validate whether numbers were written
+                                    if (voucherCode.length == 12 && !voucherCode.contains("[^0-9]".toRegex())) {
                                         showCheckResultDialog = false
                                         checkVoucherCode.value = voucherCode
                                         voucherCode = ""

@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.provigz.avtotest.db.TestSetDao
 import com.provigz.avtotest.db.TestSetDatabase
 import com.provigz.avtotest.db.entity.Property
 import com.provigz.avtotest.db.entity.TestSet
@@ -126,36 +127,9 @@ class MainActivity : ComponentActivity() {
                         } else {
                             ComposeMainScaffold(
                                 context = this@MainActivity,
+                                testSetDao,
                                 selectedCategoryInitial = TestSetCategory.fromInt(selectedCategoryID)!!,
-                                onCategorySelect = { category ->
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        testSetDao.setProperty(
-                                            Property(
-                                                name = "selectedCategory",
-                                                value = category.toInt().toString()
-                                            )
-                                        )
-                                    }
-                                },
-                                startedTestSet,
-                                onTestSetDelete = {
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        testSetDao.deleteTestSetByID(startedTestSet!!.id)
-                                        runOnUiThread {
-                                            recreate()
-                                        }
-                                    }
-                                },
-                                checkVoucherFree = { voucherCode ->
-                                    testSetDao.countTestSetsByVoucherCode(voucherCode) <= 0
-                                },
-                                saveVoucherTestSet = { testSet, testSetModel ->
-                                    testSet.insertQuestions(
-                                        testSetDao,
-                                        questions = testSetModel.questions
-                                    )
-                                    testSetDao.insertTestSet(testSet)
-                                }
+                                startedTestSet
                             )
                         }
                     }
@@ -175,15 +149,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ComposeMainScaffold(
     context: MainActivity = MainActivity(),
+    testSetDao: TestSetDao? = null,
     selectedCategoryInitial: TestSetCategory = TestSetCategory.B,
-    onCategorySelect: (TestSetCategory) -> Unit = {},
-    startedTestSet: TestSet? = null,
-    onTestSetDelete: () -> Unit = {},
-    checkVoucherFree: suspend (String) -> Boolean = { true },
-    saveVoucherTestSet: suspend (TestSet, com.provigz.avtotest.model.TestSet) -> Unit = { _, _ -> }
+    startedTestSet: TestSet? = null
 ) {
     val active = startedTestSet == null
-    
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -210,7 +181,10 @@ fun ComposeMainScaffold(
             val selectedCategory = remember { mutableStateOf(selectedCategoryInitial) }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(25.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(
+                    25.dp,
+                    Alignment.CenterHorizontally
+                ),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -257,7 +231,10 @@ fun ComposeMainScaffold(
                         },
                         text = {
                             Column(
-                                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Top),
+                                verticalArrangement = Arrangement.spacedBy(
+                                    16.dp,
+                                    Alignment.Top
+                                ),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -336,9 +313,8 @@ fun ComposeMainScaffold(
                     )
                 }
                 ComposeCheckResult(
-                    checkVoucherCode,
-                    checkVoucherFree,
-                    saveVoucherTestSet
+                    testSetDao!!,
+                    checkVoucherCode
                 )
             }
             Box(
@@ -360,92 +336,92 @@ fun ComposeMainScaffold(
                         ComposeCategoryIcon(
                             category = TestSetCategory.A,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao!!, active
                         )
                         ComposeCategoryIcon(
                             category = TestSetCategory.A1,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao, active
                         )
                         ComposeCategoryIcon(
                             category = TestSetCategory.A2,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao, active
                         )
                         ComposeCategoryIcon(
                             category = TestSetCategory.AM,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao, active
                         )
                     }
                     ComposeCategoryRow {
                         ComposeCategoryIcon(
                             category = TestSetCategory.B,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao!!, active
                         )
                         ComposeCategoryIcon(
                             category = TestSetCategory.B1,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao, active
                         )
                     }
                     ComposeCategoryRow {
                         ComposeCategoryIcon(
                             category = TestSetCategory.C,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao!!, active
                         )
                         ComposeCategoryIcon(
                             category = TestSetCategory.C1,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao, active
                         )
                         ComposeCategoryIcon(
                             category = TestSetCategory.CE,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao, active
                         )
                     }
                     ComposeCategoryRow {
                         ComposeCategoryIcon(
                             category = TestSetCategory.D,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao!!, active
                         )
                         ComposeCategoryIcon(
                             category = TestSetCategory.D1,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao, active
                         )
                         ComposeCategoryIcon(
                             category = TestSetCategory.DE,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao, active
                         )
                     }
                     ComposeCategoryRow {
                         ComposeCategoryIcon(
                             category = TestSetCategory.TKT,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao!!, active
                         )
                         ComposeCategoryIcon(
                             category = TestSetCategory.TTB,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao, active
                         )
                         ComposeCategoryIcon(
                             category = TestSetCategory.TTM,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao, active
                         )
                     }
                     ComposeCategoryRow {
                         ComposeCategoryIcon(
                             category = TestSetCategory.BTA,
                             icon = R.drawable.car,
-                            selectedCategory, onCategorySelect, active
+                            selectedCategory, testSetDao!!, active
                         )
                     }
                     Column(
@@ -462,22 +438,22 @@ fun ComposeMainScaffold(
                             ComposeCategoryIcon(
                                 category = TestSetCategory.OGain,
                                 icon = R.drawable.car,
-                                selectedCategory, onCategorySelect, active
+                                selectedCategory, testSetDao!!, active
                             )
                             ComposeCategoryIcon(
                                 category = TestSetCategory.CGain,
                                 icon = R.drawable.car,
-                                selectedCategory, onCategorySelect, active
+                                selectedCategory, testSetDao, active
                             )
                             ComposeCategoryIcon(
                                 category = TestSetCategory.ADRGain1,
                                 icon = R.drawable.car,
-                                selectedCategory, onCategorySelect, active
+                                selectedCategory, testSetDao, active
                             )
                             ComposeCategoryIcon(
                                 category = TestSetCategory.ADRGain7,
                                 icon = R.drawable.car,
-                                selectedCategory, onCategorySelect, active
+                                selectedCategory, testSetDao, active
                             )
                         }
                     }
@@ -495,22 +471,22 @@ fun ComposeMainScaffold(
                             ComposeCategoryIcon(
                                 category = TestSetCategory.OExtend,
                                 icon = R.drawable.car,
-                                selectedCategory, onCategorySelect, active
+                                selectedCategory, testSetDao!!, active
                             )
                             ComposeCategoryIcon(
                                 category = TestSetCategory.CExtend,
                                 icon = R.drawable.car,
-                                selectedCategory, onCategorySelect, active
+                                selectedCategory, testSetDao, active
                             )
                             ComposeCategoryIcon(
                                 category = TestSetCategory.ADRExtend1,
                                 icon = R.drawable.car,
-                                selectedCategory, onCategorySelect, active
+                                selectedCategory, testSetDao, active
                             )
                             ComposeCategoryIcon(
                                 category = TestSetCategory.ADRExtend7,
                                 icon = R.drawable.car,
-                                selectedCategory, onCategorySelect, active
+                                selectedCategory, testSetDao, active
                             )
                         }
                     }
@@ -521,7 +497,10 @@ fun ComposeMainScaffold(
                             .fillMaxWidth()
                             .fillMaxHeight(fraction = 0.8f)
                             .wrapContentHeight(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
+                        verticalArrangement = Arrangement.spacedBy(
+                            8.dp,
+                            Alignment.CenterVertically
+                        )
                     ) {
                         Text(
                             text = "Имате вече започната листовка:",
@@ -532,15 +511,23 @@ fun ComposeMainScaffold(
                         )
                         Text(
                             text = """
-                                #${startedTestSet.id}
-                                Категория: ${TestSetCategory.fromInt(startedTestSet.categoryID)}
-                                Започната на: ${SimpleDateFormat("dd.MM.yyyy г. HH:MM", Locale.US).format(startedTestSet.timeStarted)}
-                                Изминато време: ${String.format(
+                            #${startedTestSet.id}
+                            Категория: ${TestSetCategory.fromInt(startedTestSet.categoryID)}
+                            Започната на: ${
+                                SimpleDateFormat(
+                                    "dd.MM.yyyy г. HH:MM",
+                                    Locale.US
+                                ).format(startedTestSet.timeStarted)
+                            }
+                            Изминато време: ${
+                                String.format(
                                     locale = Locale.US,
                                     format = "%02d:%02d",
-                                    startedTestSet.stateSecondsPassed / 60, startedTestSet.stateSecondsPassed % 60
-                                )}
-                            """.trimIndent(),
+                                    startedTestSet.stateSecondsPassed / 60,
+                                    startedTestSet.stateSecondsPassed % 60
+                                )
+                            }
+                        """.trimIndent(),
                             textAlign = TextAlign.Center,
                             fontSize = 20.sp,
                             lineHeight = 30.sp,
@@ -572,7 +559,10 @@ fun ComposeMainScaffold(
                         .padding(top = 20.dp)
                 ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
+                        horizontalArrangement = Arrangement.spacedBy(
+                            7.dp,
+                            Alignment.CenterHorizontally
+                        ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.Clear, contentDescription = "Отказ")
@@ -603,7 +593,12 @@ fun ComposeMainScaffold(
                             Button(
                                 onClick = {
                                     showCancelWarningDialog = false
-                                    onTestSetDelete()
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        testSetDao!!.deleteTestSetByID(startedTestSet.id)
+                                        context.runOnUiThread {
+                                            context.recreate()
+                                        }
+                                    }
                                 }
                             ) {
                                 Text(text = "Да")
@@ -639,7 +634,10 @@ fun ComposeMainScaffold(
                     .padding(top = 20.dp)
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        7.dp,
+                        Alignment.CenterHorizontally
+                    ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = "Решавай")
@@ -702,7 +700,7 @@ fun ComposeCategoryIcon(
     category: TestSetCategory,
     icon: Int,
     selectedCategory: MutableState<TestSetCategory>,
-    onCategorySelect: (TestSetCategory) -> Unit,
+    testSetDao: TestSetDao,
     active: Boolean
 ) {
     val selected = selectedCategory.value == category
@@ -713,7 +711,14 @@ fun ComposeCategoryIcon(
         ) {
             if (!selected) {
                 selectedCategory.value = category
-                onCategorySelect(category)
+                CoroutineScope(Dispatchers.IO).launch {
+                    testSetDao.setProperty(
+                        Property(
+                            name = "selectedCategory",
+                            value = category.toInt().toString()
+                        )
+                    )
+                }
             }
         }
     ) {
@@ -735,16 +740,15 @@ fun ComposeCategoryIcon(
 
 @Composable
 fun ComposeCheckResult(
-    checkVoucherCode: MutableState<String?>,
-    checkVoucherFree: suspend (String) -> Boolean,
-    saveVoucherTestSet: suspend (TestSet, com.provigz.avtotest.model.TestSet) -> Unit
+    testSetDao: TestSetDao,
+    checkVoucherCode: MutableState<String?>
 ) {
     if (checkVoucherCode.value == null) {
         return
     }
 
     val testSetVoucherFreeState by produceState(false to false) {
-        val result = checkVoucherFree(checkVoucherCode.value!!)
+        val result = testSetDao.countTestSetsByVoucherCode(checkVoucherCode.value!!) <= 0
         value = true to result
     }
     val (hasLoadedVoucherFree, testSetVoucherFree) = testSetVoucherFreeState
@@ -803,7 +807,11 @@ fun ComposeCheckResult(
                 }
                 var testSetReady by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) {
-                    saveVoucherTestSet(testSet, assessment.testSet)
+                    testSet.insertQuestions(
+                        testSetDao,
+                        questions = assessment.testSet.questions
+                    )
+                    testSetDao.insertTestSet(testSet)
                     testSetReady = true
                 }
 

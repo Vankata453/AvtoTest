@@ -19,6 +19,8 @@ data class Question(
 ) {
     var answerIDs: List<Int> = emptyList()
 
+    var favorite = false
+
     constructor(model: com.provigz.avtotest.model.Question) : this(
         id = model.id,
         text = model.text,
@@ -108,6 +110,9 @@ data class QuestionQueried(
         ++_updateCount.value
 
         testSetDao!!.insertQuestionState(state)
+
+        // Update individual properties in DB, in case they've changed
+        testSetDao.updateQuestionFavorite(base.id, base.favorite)
     }
 
     suspend fun setAssessment(assessed: QuestionAssessed) {

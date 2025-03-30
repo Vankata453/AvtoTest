@@ -20,6 +20,8 @@ data class TestSet(
     var questionIDs: List<Int> = emptyList()
     var timeStarted: Long = System.currentTimeMillis()
 
+    var favorite = false
+
     /* STATE */
     var stateCurrentQuestionIndex: Int = 0 // Negative indicates results page
     var stateSecondsPassed: Int = 0

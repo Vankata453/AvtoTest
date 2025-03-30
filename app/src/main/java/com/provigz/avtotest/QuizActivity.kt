@@ -9,7 +9,9 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,8 +69,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -732,6 +736,34 @@ fun ComposeQuizScaffold(
                         }
                     },
                     actions = {
+                        val questionIndex = testSet.base.stateCurrentQuestionIndex
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    if (questionIndex < 0) {
+                                        testSet.base.favorite = !testSet.base.favorite
+                                    } else {
+                                        val question = testSet.questions[questionIndex]
+                                        question.base.favorite = !question.base.favorite
+                                        question.save()
+                                    }
+                                    testSet.save()
+                                }
+                            }
+                        ) {
+                            Image(
+                                painter = painterResource(id =
+                                    if ((questionIndex < 0 && testSet.base.favorite) ||
+                                        (questionIndex >= 0 && testSet.questions[questionIndex].base.favorite)) {
+                                        R.drawable.heart_filled
+                                    } else {
+                                        R.drawable.heart
+                                    }),
+                                contentDescription = "Маркирай към любими",
+                                colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
                         if (!testSet.base.isFinished()) {
                             IconButton(onClick = {
                                 showSubmitWarningDialog = true

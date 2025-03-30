@@ -83,6 +83,8 @@ interface TestSetDao {
 
     @Query("UPDATE testSet SET stateSecondsPassed = :secondsPassed WHERE id = :testSetID")
     suspend fun updateTestSetSecondsPassed(testSetID: Int, secondsPassed: Int)
+    @Query("UPDATE question SET favorite = :favorite WHERE id = :questionID")
+    suspend fun updateQuestionFavorite(questionID: Int, favorite: Boolean)
     @Query("UPDATE answer SET correct = :correct WHERE id = :answerID")
     suspend fun updateAnswerSetCorrect(answerID: Int, correct: Boolean)
 

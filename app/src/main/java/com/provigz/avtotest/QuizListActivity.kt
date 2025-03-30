@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,6 +43,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -55,11 +58,26 @@ import com.provigz.avtotest.db.entity.TestSet
 import com.provigz.avtotest.model.TestSetCategory
 import com.provigz.avtotest.model.TestSetSubCategory
 import com.provigz.avtotest.ui.theme.AvtoTestTheme
+import com.provigz.avtotest.util.ComposeDropdownMenu
 import com.provigz.avtotest.util.ComposeLoadingPrompt
 import kotlinx.coroutines.flow.filter
 import java.util.Locale
 
 const val ITEM_LIMIT = 20
+
+enum class QuizSortOptions(val sql: String) {
+    Latest(sql = "timeStarted DESC"),
+    Oldest(sql = "timeStarted ASC"),
+    MostPoints(sql = "stateReceivedPoints DESC"),
+    LeastPoints(sql = "stateReceivedPoints ASC"),
+    FastestFinished(sql = "stateSecondsPassed ASC"),
+    SlowestFinished(sql = "stateSecondsPassed DESC")
+}
+enum class QuizFilterOptions(val sql: String) {
+    All(sql = ""),
+    Favorite(sql = "favorite = 1"),
+    FromVoucher(sql = "voucherCode IS NOT NULL")
+}
 
 class QuizListActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,6 +102,9 @@ class QuizListActivity : ComponentActivity() {
 fun ComposeQuizListScaffold(
     testSetDao: TestSetDao
 ) {
+    val sortCriteria = remember { mutableIntStateOf(0) }
+    val filterCriteria = remember { mutableIntStateOf(0) }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -102,21 +123,63 @@ fun ComposeQuizListScaffold(
             )
         }
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier.padding(innerPadding)
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ComposeDropdownMenu(
+                    options = arrayOf(
+                        "Нови",
+                        "Стари",
+                        "Най-много точки",
+                        "Най-малко точки",
+                        "Най-бързо завършени",
+                        "Най-бавно завършени"
+                    ),
+                    selectedIndex = sortCriteria,
+                    modifier = Modifier.fillMaxWidth(fraction = 0.5f)
+                )
+                ComposeDropdownMenu(
+                    options = arrayOf(
+                        "Всички",
+                        "Любими",
+                        "От ваучер"
+                    ),
+                    selectedIndex = filterCriteria,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             var page = remember { 1 }
             var reachedEnd by remember { mutableStateOf(false) }
-            var testSets by remember { mutableStateOf(emptyArray<TestSet>()) }
+            var testSets by remember { mutableStateOf(emptyList<TestSet>()) }
             val listState = rememberLazyListState()
 
+            LaunchedEffect(Pair(sortCriteria.intValue, filterCriteria.intValue)) {
+                page = 1
+                reachedEnd = false
+                testSets = testSetDao.getTestSetsSortFilter(
+                    limit = ITEM_LIMIT,
+                    offset = 0,
+                    sortQuery = QuizSortOptions.entries[sortCriteria.intValue].sql,
+                    filterQuery = QuizFilterOptions.entries[filterCriteria.intValue].sql
+                )
+            }
             LaunchedEffect(listState) {
                 snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull() }
                     .filter { it != null && it.index >= testSets.lastIndex }
                     .collect {
-                        val moreTestSets = testSetDao.getLatestTestSets(
+                        val moreTestSets = testSetDao.getTestSetsSortFilter(
                             limit = ITEM_LIMIT,
-                            offset = ITEM_LIMIT * page
+                            offset = ITEM_LIMIT * page,
+                            sortQuery = QuizSortOptions.entries[sortCriteria.intValue].sql,
+                            filterQuery = QuizFilterOptions.entries[filterCriteria.intValue].sql
                         )
                         if (moreTestSets.isEmpty()) {
                             reachedEnd = true
@@ -128,12 +191,6 @@ fun ComposeQuizListScaffold(
             }
 
             if (testSets.isEmpty()) {
-                LaunchedEffect(Unit) {
-                    testSets = testSetDao.getLatestTestSets(
-                        limit = ITEM_LIMIT,
-                        offset = 0
-                    )
-                }
                 ComposeLoadingPrompt(text = "Зареждане на листовки")
             } else {
                 ComposeQuizList(
@@ -173,7 +230,7 @@ fun ComposeQuizListPreview() {
 
     ComposeQuizList(
         listState = rememberLazyListState(),
-        testSets = arrayOf(testSet),
+        testSets = listOf(testSet),
         reachedEnd = false
     )
 }
@@ -181,7 +238,7 @@ fun ComposeQuizListPreview() {
 @Composable
 fun ComposeQuizList(
     listState: LazyListState,
-    testSets: Array<TestSet>,
+    testSets: List<TestSet>,
     reachedEnd: Boolean
 ) {
     LazyColumn(
@@ -240,6 +297,7 @@ fun ComposeQuizListEntry(
                 Image(
                     painter = painterResource(id = category.getIcon()),
                     contentDescription = "Категория $category",
+                    colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
                     modifier = Modifier.size(40.dp)
                 )
                 Text(
@@ -273,6 +331,7 @@ fun ComposeQuizListEntry(
                         Image(
                             painter = painterResource(id = R.drawable.voucher),
                             contentDescription = "Ваучер",
+                            colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
@@ -361,6 +420,7 @@ fun ComposeQuizListEntry(
                         Image(
                             painter = painterResource(id = R.drawable.time),
                             contentDescription = "Време",
+                            colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
                             modifier = Modifier.size(15.dp)
                         )
                         val secondsPassed = testSet.getSecondsPassed()
@@ -382,6 +442,7 @@ fun ComposeQuizListEntry(
                     Image(
                         painter = painterResource(id = R.drawable.calendar),
                         contentDescription = "Дата",
+                        colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
                         modifier = Modifier.size(20.dp)
                     )
                     Text(

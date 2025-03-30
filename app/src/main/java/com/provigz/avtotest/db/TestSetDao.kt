@@ -47,6 +47,14 @@ interface TestSetDao {
     suspend fun getQuestionStateByIDs(testSetID: Int, questionID: Int): QuestionState
 
     @RawQuery
+    suspend fun getTestSetsByQuery(query: SupportSQLiteQuery): List<TestSet>
+    suspend fun getTestSetsSortFilter(limit: Int, offset: Int, sortQuery: String, filterQuery: String): List<TestSet> {
+        val orderByQueryStr = if (sortQuery.isNotBlank()) "ORDER BY $sortQuery" else ""
+        val whereQueryStr = if (filterQuery.isNotBlank()) "WHERE $filterQuery" else ""
+        val query = SimpleSQLiteQuery(query = "SELECT * FROM testSet $whereQueryStr $orderByQueryStr LIMIT $limit OFFSET $offset")
+        return getTestSetsByQuery(query)
+    }
+    @RawQuery
     suspend fun getQuestionsByRawQuery(query: SupportSQLiteQuery): List<Question>
     suspend fun getQuestionsByIDs(questionIDs: List<Int>): List<Question> {
         return getOrderedObjectsByIDs(
@@ -67,8 +75,6 @@ interface TestSetDao {
         }
     }
 
-    @Query("SELECT * FROM testSet ORDER BY timeStarted DESC LIMIT :limit OFFSET :offset")
-    suspend fun getLatestTestSets(limit: Int, offset: Int): Array<TestSet>
     @Query("SELECT COUNT(*) FROM testSet WHERE voucherCode = :voucherCode")
     suspend fun countTestSetsByVoucherCode(voucherCode: String): Int
 

@@ -119,6 +119,26 @@ class QuizActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AvtoTestTheme {
+                // Load an existing TestSet, if provided.
+                val providedTestSetID = intent.getIntExtra("testSetID", -1)
+                if (providedTestSetID >= 0) {
+                    val testSetState by produceState<Pair<Boolean, TestSet?>>(false to null) {
+                        val data = testSetDao.getTestSetByID(providedTestSetID)
+                        value = true to data
+                    }
+                    val (hasLoadedTestSet, testSet) = testSetState
+
+                    if (hasLoadedTestSet) {
+                        ComposeQueryQuizActivity(
+                            testSetDao,
+                            testSet
+                        )
+                    } else {
+                        ComposeLoadingPrompt(text = "Зареждане на листовка")
+                    }
+                    return@AvtoTestTheme
+                }
+
                 if (!isOnline(context = this@QuizActivity)) {
                     AlertDialog(
                         onDismissRequest = {},
@@ -147,6 +167,7 @@ class QuizActivity : ComponentActivity() {
                     return@AvtoTestTheme
                 }
 
+                // Load the started TestSet or request and start a new one.
                 val testSetIDState by produceState<Pair<Boolean, String?>>(false to null) {
                     val data = testSetDao.getProperty("startedTestSet")
                     value = true to data
@@ -300,8 +321,6 @@ class QuizActivity : ComponentActivity() {
         }
     }
 }
-
-
 
 @Composable
 fun ComposeQueryQuizActivity(
@@ -936,7 +955,7 @@ fun ComposeQuizResults(
                 .height(40.dp),
             horizontalArrangement = Arrangement.Center
         ) {
-            val secondsPassed = min(a = testSet.base.stateSecondsPassed, b = testSet.base.durationMinutes * 60)
+            val secondsPassed = testSet.base.getSecondsPassed()
             Text(
                 text =
                 if (testSet.base.voucherCode.isNullOrEmpty()) {

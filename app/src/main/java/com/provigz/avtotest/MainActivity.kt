@@ -200,7 +200,8 @@ fun ComposeMainScaffold(
                     icon = R.drawable.test,
                     text = "Листовки",
                     onPress = {
-
+                        val intent = Intent(context, QuizListActivity::class.java)
+                        context.startActivity(intent)
                     },
                     active
                 )

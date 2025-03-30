@@ -1,6 +1,7 @@
 package com.provigz.avtotest.model
 
 import com.google.gson.annotations.SerializedName
+import com.provigz.avtotest.R
 
 enum class TestSetCategory(val id: Int) {
     @SerializedName("2")  A(id = 2),
@@ -54,5 +55,8 @@ enum class TestSetCategory(val id: Int) {
 
             else -> name
         }
+    }
+    fun getIcon(): Int {
+        return R.drawable.car
     }
 }

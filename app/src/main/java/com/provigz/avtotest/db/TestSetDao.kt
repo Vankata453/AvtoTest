@@ -67,6 +67,8 @@ interface TestSetDao {
         }
     }
 
+    @Query("SELECT * FROM testSet ORDER BY timeStarted DESC LIMIT :limit OFFSET :offset")
+    suspend fun getLatestTestSets(limit: Int, offset: Int): Array<TestSet>
     @Query("SELECT COUNT(*) FROM testSet WHERE voucherCode = :voucherCode")
     suspend fun countTestSetsByVoucherCode(voucherCode: String): Int
 

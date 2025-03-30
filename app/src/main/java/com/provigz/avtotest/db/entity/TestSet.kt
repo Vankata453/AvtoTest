@@ -7,6 +7,7 @@ import com.provigz.avtotest.model.TestSetAssessment
 import com.provigz.avtotest.model.TestSetAssessmentResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.math.min
 
 @Entity(tableName = "testSet")
 data class TestSet(
@@ -98,6 +99,9 @@ data class TestSet(
         return queried
     }
 
+    fun getSecondsPassed(): Int {
+        return min(a = stateSecondsPassed, b = durationMinutes * 60)
+    }
     fun isFinished(): Boolean {
         return stateTimeFinished != null || stateAssessed
     }

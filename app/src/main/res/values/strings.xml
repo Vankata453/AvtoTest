@@ -42,5 +42,7 @@
         libero vel nunc consequat, quis tincidunt nisl eleifend. Cras bibendum enim a justo luctus
         vestibulum. Fusce dictum libero quis erat maximus, vitae volutpat diam dignissim.
     </string>
+    <string name="title_activity_question_list">QuestionListActivity</string>
     <string name="title_activity_quiz_list">QuizListActivity</string>
+    <string name="title_activity_question">QuestionActivity</string>
 </resources>

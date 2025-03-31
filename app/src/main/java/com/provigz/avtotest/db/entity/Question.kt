@@ -1,5 +1,6 @@
 package com.provigz.avtotest.db.entity
 
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.provigz.avtotest.db.TestSetDao
@@ -65,6 +66,20 @@ data class Question(
     }
 
     suspend fun query(
+        testSetDao: TestSetDao
+    ): QuestionQueried {
+        return QuestionQueried(
+            testSetDao,
+            base = this,
+            state = QuestionState(
+                testSetID = -1,
+                questionID = id,
+                answerIDs = answerIDs
+            ), // Create a dummy state
+            answers = testSetDao.getAnswersByIDs(answerIDs)
+        )
+    }
+    suspend fun query(
         testSetDao: TestSetDao,
         testSetID: Int
     ): QuestionQueried {
@@ -109,10 +124,12 @@ data class QuestionQueried(
     suspend fun save() {
         ++_updateCount.value
 
-        testSetDao!!.insertQuestionState(state)
+        if (state.testSetID >= 0) { // Ensure we're not using a dummy state.
+            testSetDao!!.insertQuestionState(state)
+        }
 
         // Update individual properties in DB, in case they've changed
-        testSetDao.updateQuestionFavorite(base.id, base.favorite)
+        testSetDao!!.updateQuestionFavorite(base.id, base.favorite)
     }
 
     suspend fun setAssessment(assessed: QuestionAssessed) {
@@ -143,4 +160,23 @@ data class QuestionQueried(
 
         return correctAnswerIndexes == state.stateSelectedAnswerIndexes.sorted()
     }
+
+    suspend fun getDistributionData(): QuestionQueriedDistributionData {
+        return QuestionQueriedDistributionData(
+            question = this,
+            occurrenceCount = testSetDao!!.countQuestionOccurrencesByID(base.id),
+            //answersDistribution = testSetDao.countQuestionAnswersDistributionByID(base.id, base.answerIDs)
+        )
+    }
 }
+
+data class QuestionWithOccurrenceCount (
+    @Embedded val question: Question,
+    val occurrenceCount: Int
+)
+
+data class QuestionQueriedDistributionData (
+    val question: QuestionQueried,
+    val occurrenceCount: Int,
+    //val answersDistribution: TODO
+)

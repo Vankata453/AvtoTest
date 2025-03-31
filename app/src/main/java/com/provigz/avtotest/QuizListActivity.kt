@@ -63,7 +63,7 @@ import com.provigz.avtotest.util.ComposeLoadingPrompt
 import kotlinx.coroutines.flow.filter
 import java.util.Locale
 
-const val ITEM_LIMIT = 20
+const val QUIZ_ITEM_LIMIT = 20
 
 enum class QuizSortOptions(val sql: String) {
     Latest(sql = "timeStarted DESC"),
@@ -165,7 +165,7 @@ fun ComposeQuizListScaffold(
                 page = 1
                 reachedEnd = false
                 testSets = testSetDao.getTestSetsSortFilter(
-                    limit = ITEM_LIMIT,
+                    limit = QUIZ_ITEM_LIMIT,
                     offset = 0,
                     sortQuery = QuizSortOptions.entries[sortCriteria.intValue].sql,
                     filterQuery = QuizFilterOptions.entries[filterCriteria.intValue].sql
@@ -176,8 +176,8 @@ fun ComposeQuizListScaffold(
                     .filter { it != null && it.index >= testSets.lastIndex }
                     .collect {
                         val moreTestSets = testSetDao.getTestSetsSortFilter(
-                            limit = ITEM_LIMIT,
-                            offset = ITEM_LIMIT * page,
+                            limit = QUIZ_ITEM_LIMIT,
+                            offset = QUIZ_ITEM_LIMIT * page,
                             sortQuery = QuizSortOptions.entries[sortCriteria.intValue].sql,
                             filterQuery = QuizFilterOptions.entries[filterCriteria.intValue].sql
                         )

@@ -12,6 +12,7 @@ import com.provigz.avtotest.db.entity.Answer
 import com.provigz.avtotest.db.entity.Property
 import com.provigz.avtotest.db.entity.Question
 import com.provigz.avtotest.db.entity.QuestionState
+import com.provigz.avtotest.db.entity.QuestionWithOccurrenceCount
 import com.provigz.avtotest.db.entity.TestSet
 
 suspend fun <T> getOrderedObjectsByIDs(
@@ -43,16 +44,20 @@ suspend fun <T> getOrderedObjectsByIDs(
 interface TestSetDao {
     @Query("SELECT * FROM testSet WHERE id = :id")
     suspend fun getTestSetByID(id: Int): TestSet?
+    @Query("SELECT * FROM question WHERE id = :id")
+    suspend fun getQuestionByID(id: Int): Question?
     @Query("SELECT * FROM questionState WHERE testSetID = :testSetID AND questionID = :questionID")
     suspend fun getQuestionStateByIDs(testSetID: Int, questionID: Int): QuestionState
 
     @RawQuery
-    suspend fun getTestSetsByQuery(query: SupportSQLiteQuery): List<TestSet>
+    suspend fun getTestSetsByRawQuery(query: SupportSQLiteQuery): List<TestSet>
     suspend fun getTestSetsSortFilter(limit: Int, offset: Int, sortQuery: String, filterQuery: String): List<TestSet> {
         val orderByQueryStr = if (sortQuery.isNotBlank()) "ORDER BY $sortQuery" else ""
         val whereQueryStr = if (filterQuery.isNotBlank()) "WHERE $filterQuery" else ""
-        val query = SimpleSQLiteQuery(query = "SELECT * FROM testSet $whereQueryStr $orderByQueryStr LIMIT $limit OFFSET $offset")
-        return getTestSetsByQuery(query)
+        val query = SimpleSQLiteQuery(
+            query = "SELECT * FROM testSet $whereQueryStr $orderByQueryStr LIMIT $limit OFFSET $offset"
+        )
+        return getTestSetsByRawQuery(query)
     }
     @RawQuery
     suspend fun getQuestionsByRawQuery(query: SupportSQLiteQuery): List<Question>
@@ -63,6 +68,24 @@ interface TestSetDao {
         ) { query ->
             getQuestionsByRawQuery(query)
         }
+    }
+    @RawQuery
+    suspend fun getQuestionsAndOccurenceCountByRawQuery(query: SupportSQLiteQuery): List<QuestionWithOccurrenceCount>
+    suspend fun getQuestionsAndOccurenceCountSortFilter(limit: Int, offset: Int, sortQuery: String, filterQuery: String): List<QuestionWithOccurrenceCount> {
+        val orderByQueryStr = if (sortQuery.isNotBlank()) "ORDER BY $sortQuery" else ""
+        val whereQueryStr = if (filterQuery.isNotBlank()) "WHERE $filterQuery" else ""
+        val query = SimpleSQLiteQuery(
+            query = """
+                SELECT q.*, COUNT(s.questionId) AS occurrenceCount
+                FROM question q
+                LEFT JOIN questionState s ON q.id = s.questionId
+                $whereQueryStr
+                GROUP BY q.id
+                $orderByQueryStr
+                LIMIT $limit OFFSET $offset
+            """
+        )
+        return getQuestionsAndOccurenceCountByRawQuery(query)
     }
     @RawQuery
     suspend fun getAnswersByRawQuery(query: SupportSQLiteQuery): List<Answer>
@@ -77,6 +100,8 @@ interface TestSetDao {
 
     @Query("SELECT COUNT(*) FROM testSet WHERE voucherCode = :voucherCode")
     suspend fun countTestSetsByVoucherCode(voucherCode: String): Int
+    @Query("SELECT COUNT(*) FROM questionState WHERE questionID = :questionID")
+    suspend fun countQuestionOccurrencesByID(questionID: Int): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTestSet(testSet: TestSet)

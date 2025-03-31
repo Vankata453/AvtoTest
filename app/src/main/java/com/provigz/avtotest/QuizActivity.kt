@@ -133,10 +133,35 @@ class QuizActivity : ComponentActivity() {
                     val (hasLoadedTestSet, testSet) = testSetState
 
                     if (hasLoadedTestSet) {
-                        ComposeQueryQuizActivity(
-                            testSetDao,
-                            testSet
-                        )
+                        if (testSet == null) {
+                            AlertDialog(
+                                onDismissRequest = {},
+                                title = {
+                                    Text(
+                                        text = "Грешка"
+                                    )
+                                },
+                                text = {
+                                    Text(
+                                        text = "Листовката не може да бъде заредена!"
+                                    )
+                                },
+                                confirmButton = {
+                                    Button(
+                                        onClick = {
+                                            finish()
+                                        }
+                                    ) {
+                                        Text(text = "OK")
+                                    }
+                                }
+                            )
+                        } else {
+                            ComposeQueryQuizActivity(
+                                testSetDao,
+                                testSet
+                            )
+                        }
                     } else {
                         ComposeLoadingPrompt(text = "Зареждане на листовка")
                     }

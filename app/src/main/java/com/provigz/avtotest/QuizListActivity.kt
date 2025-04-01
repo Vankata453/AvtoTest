@@ -1,6 +1,7 @@
 package com.provigz.avtotest
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.icu.text.SimpleDateFormat
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -203,7 +204,15 @@ fun ComposeQuizListScaffold(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(
+    name = "Light",
+    showBackground = true
+)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 fun ComposeQuizListPreview() {
     val testSet = TestSet(
@@ -228,11 +237,13 @@ fun ComposeQuizListPreview() {
     testSet.stateIncorrectQuestionsCount = 3
     testSet.statePassed = true
 
-    ComposeQuizList(
-        listState = rememberLazyListState(),
-        testSets = listOf(testSet),
-        reachedEnd = false
-    )
+    AvtoTestTheme {
+        ComposeQuizList(
+            listState = rememberLazyListState(),
+            testSets = listOf(testSet),
+            reachedEnd = false
+        )
+    }
 }
 
 @Composable
@@ -331,7 +342,6 @@ fun ComposeQuizListEntry(
                         Image(
                             painter = painterResource(id = R.drawable.voucher),
                             contentDescription = "Ваучер",
-                            colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
@@ -420,7 +430,6 @@ fun ComposeQuizListEntry(
                         Image(
                             painter = painterResource(id = R.drawable.time),
                             contentDescription = "Време",
-                            colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
                             modifier = Modifier.size(15.dp)
                         )
                         val secondsPassed = testSet.getSecondsPassed()
@@ -440,9 +449,8 @@ fun ComposeQuizListEntry(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.calendar),
+                        painter = painterResource(id = if (isSystemInDarkTheme()) R.drawable.calendar_inverted else R.drawable.calendar),
                         contentDescription = "Дата",
-                        colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
                         modifier = Modifier.size(20.dp)
                     )
                     Text(

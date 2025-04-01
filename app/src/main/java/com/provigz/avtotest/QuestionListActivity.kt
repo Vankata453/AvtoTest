@@ -1,13 +1,13 @@
 package com.provigz.avtotest
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +41,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -198,7 +197,15 @@ fun ComposeQuestionListScaffold(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(
+    name = "Light",
+    showBackground = true
+)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 fun ComposeQuestionListPreview() {
     val q = QuestionWithOccurrenceCount(
@@ -218,11 +225,13 @@ fun ComposeQuestionListPreview() {
     )
     q.question.favorite = true
 
-    ComposeQuestionList(
-        listState = rememberLazyListState(),
-        questions = listOf(q),
-        reachedEnd = false
-    )
+    AvtoTestTheme {
+        ComposeQuestionList(
+            listState = rememberLazyListState(),
+            questions = listOf(q),
+            reachedEnd = false
+        )
+    }
 }
 
 @Composable
@@ -318,7 +327,6 @@ fun ComposeQuestionListEntry(
                 Image(
                     painter = painterResource(id = R.drawable.history),
                     contentDescription = "Пъти срещан",
-                    colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
                     modifier = Modifier.size(15.dp)
                 )
                 Text(
@@ -333,7 +341,6 @@ fun ComposeQuestionListEntry(
                 Image(
                     painter = painterResource(id = R.drawable.point),
                     contentDescription = "Точки",
-                    colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
                     modifier = Modifier.size(15.dp)
                 )
                 Text(
@@ -348,7 +355,6 @@ fun ComposeQuestionListEntry(
                 Image(
                     painter = painterResource(id = R.drawable.checkmarks),
                     contentDescription = "Верни отговори",
-                    colorFilter = ColorFilter.tint(if (isSystemInDarkTheme()) Color.White else Color.Black),
                     modifier = Modifier.size(20.dp)
                 )
                 Text(

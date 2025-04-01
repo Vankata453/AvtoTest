@@ -1146,7 +1146,7 @@ fun ComposeQuizResults(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Към начало",
+                    text = "Изход",
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
                     overflow = TextOverflow.Ellipsis,
